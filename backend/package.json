@@ -1,0 +1,16 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "description": "AI chatbot with socket",
+  "main": "app.js",
+  "scripts": {
+    "start": "node src/app.js"
+  },
+  "type": "module",
+  "author": "Deepak Garg",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^5.1.0",
+    "socket.io": "^4.8.1"
+  }
+}
