@@ -10,10 +10,13 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@react-spring/three": "^10.0.1",
+    "@react-three/drei": "^10.6.1",
     "@react-three/fiber": "^9.3.0",
     "@reduxjs/toolkit": "^2.8.2",
     "@tailwindcss/vite": "^4.1.11",
     "@types/three": "^0.178.1",
+    "jsonrpc-lite": "^2.2.0",
     "nvm": "^0.0.4",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
