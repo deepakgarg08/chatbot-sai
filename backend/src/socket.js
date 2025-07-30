@@ -19,10 +19,22 @@ export default function setupSocket(io) {
       io.emit("chat message", data); // Broadcast to all including sender
     });
 
+
+    socket.on('typing', (username) => {
+      // broadcast to everyone except sender that 'username' is typing
+      socket.broadcast.emit('typing', username);
+    });
+
+    socket.on('stop typing', (username) => {
+      // broadcast to everyone except sender that 'username' stopped typing
+      socket.broadcast.emit('stop typing', username);
+    });
+
     socket.on("disconnect", () => {
       const username = users.get(socket.id);
       users.delete(socket.id);
       console.log(`User disconnected: ${username || "Unknown"} (socket ${socket.id})`);
     });
+
   });
 }
