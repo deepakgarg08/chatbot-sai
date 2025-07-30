@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { setUsername, addMessage } from "../store/chatSlice";
 import socket from "../services/socket";
+import MessageList from "./MessageList";
 
 const Chat = () => {
   const dispatch = useDispatch();
@@ -10,6 +11,8 @@ const Chat = () => {
 
   const [input, setInput] = useState("");
   const usernamePrompted = useRef(false);
+
+  const messagesEndRef = useRef(null);
 
   // Prompt once after mount
   useEffect(() => {
@@ -39,10 +42,14 @@ const Chat = () => {
     };
   }, [username, dispatch]);
 
+   useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
   const sendMessage = () => {
     if (input.trim() === "") return;
 
-    const messageData = { user: username, text: input };
+    const messageData = { user: username, text: input, timestamp: Date.now() };
     socket.emit("chat message", messageData);
     setInput("");
     // No local append; wait for server broadcast to update Redux state
@@ -58,23 +65,8 @@ const Chat = () => {
         Chat as <span className="text-indigo-600">{username}</span>
       </h2>
 
-      <div
-        className="border rounded-md p-4 mb-4 h-80 overflow-y-auto bg-gray-50 flex flex-col"
-        id="messages-container"
-      >
-        {messages.map(({ user, text }, idx) => (
-          <div
-            key={idx}
-            className={`mb-2 p-2 rounded ${
-              user === username
-                ? "bg-indigo-100 text-indigo-900 self-end"
-                : "bg-gray-200 text-gray-900 self-start"
-            }`}
-          >
-            <strong>{user}:</strong> {text}
-          </div>
-        ))}
-      </div>
+      <MessageList messages={messages} currentUsername={username} />
+      <div ref={messagesEndRef} />
 
       <div className="flex space-x-2">
         <input
