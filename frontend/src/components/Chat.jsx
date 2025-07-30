@@ -1,12 +1,15 @@
 import React, { useState, useEffect, useRef } from "react";
+import { useSelector, useDispatch } from "react-redux";
+import { setUsername, addMessage } from "../store/chatSlice";
 import socket from "../services/socket";
 
 const Chat = () => {
-  const [username, setUsername] = useState("");
-  const usernamePrompted = useRef(false);
+  const dispatch = useDispatch();
+  const username = useSelector((state) => state.chat.username);
+  const messages = useSelector((state) => state.chat.messages);
 
-  const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
+  const usernamePrompted = useRef(false);
 
   // Prompt once after mount
   useEffect(() => {
@@ -18,14 +21,15 @@ const Chat = () => {
       name = prompt("Enter your username")?.trim();
       if (!name) alert("Please enter a valid username.");
     }
-    setUsername(name);
-  }, []);
+    dispatch(setUsername(name));
+  }, [dispatch]);
 
   // Register socket event listener once when username is set
   useEffect(() => {
-    if (!username) return; // Wait until username is set
+    if (!username) return; // wait until username is set
+
     const messageHandler = (data) => {
-      setMessages((prev) => [...prev, data]);
+      dispatch(addMessage(data));
     };
 
     socket.on("chat message", messageHandler);
@@ -33,7 +37,7 @@ const Chat = () => {
     return () => {
       socket.off("chat message", messageHandler);
     };
-  }, [username]);
+  }, [username, dispatch]);
 
   const sendMessage = () => {
     if (input.trim() === "") return;
@@ -41,7 +45,7 @@ const Chat = () => {
     const messageData = { user: username, text: input };
     socket.emit("chat message", messageData);
     setInput("");
-    // No local message append here!
+    // No local append; wait for server broadcast to update Redux state
   };
 
   if (!username) {
@@ -55,7 +59,7 @@ const Chat = () => {
       </h2>
 
       <div
-        className="border rounded-md p-4 mb-4 h-80 overflow-y-auto bg-gray-50"
+        className="border rounded-md p-4 mb-4 h-80 overflow-y-auto bg-gray-50 flex flex-col"
         id="messages-container"
       >
         {messages.map(({ user, text }, idx) => (
@@ -64,7 +68,7 @@ const Chat = () => {
             className={`mb-2 p-2 rounded ${
               user === username
                 ? "bg-indigo-100 text-indigo-900 self-end"
-                : "bg-gray-200 text-gray-900"
+                : "bg-gray-200 text-gray-900 self-start"
             }`}
           >
             <strong>{user}:</strong> {text}
