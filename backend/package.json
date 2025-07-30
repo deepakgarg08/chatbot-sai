@@ -4,7 +4,8 @@
   "description": "AI chatbot with socket",
   "main": "app.js",
   "scripts": {
-    "start": "nodemon src/app.js"
+    "start": "nodemon src/app.js",
+    "test": "NODE_ENV=test mocha \"test/**/*.test.js\" --exit"
   },
   "type": "module",
   "author": "Deepak Garg",
@@ -13,5 +14,11 @@
     "express": "^5.1.0",
     "jsonrpc-lite": "^2.2.0",
     "socket.io": "^4.8.1"
+  },
+  "devDependencies": {
+    "chai": "^5.2.1",
+    "mocha": "^11.7.1",
+    "sinon": "^21.0.0",
+    "socket.io-client": "^4.8.1"
   }
 }
