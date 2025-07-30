@@ -1,40 +1,113 @@
+import jsonrpc from "jsonrpc-lite";
+
 export default function setupSocket(io) {
   const users = new Map();
 
   io.on("connection", (socket) => {
     console.log(`User connected: ${socket.id}`);
 
-    socket.on("register user", (username) => {
-      users.set(socket.id, username);
-      console.log(`User registered: ${username} (socket ${socket.id})`);
-    });
+    // Helper to send JSON-RPC responses or notifications
+    function sendResponse(response) {
+      socket.emit("rpc", response);
+    }
 
-    socket.on("chat message", (data) => {
-      if (!data || !data.user || !data.text) {
-        console.warn("Invalid message data:", data);
+    // Handler for incoming JSON-RPC messages on 'rpc' event
+    socket.on("rpc", (payload) => {
+      let parsed;
+      try {
+        parsed = jsonrpc.parseObject(payload);
+      } catch (err) {
+        console.warn("Failed to parse JSON-RPC payload:", err);
+        // Send an error response if id exists
+        if (payload && payload.id) {
+          const error = jsonrpc.error(payload.id, new jsonrpc.JsonRpcError("Parse error", -32700));
+          sendResponse(error);
+        }
         return;
       }
-      console.log(`Message from ${data.user}: ${data.text}`);
 
-      io.emit("chat message", data); // Broadcast to all including sender
-    });
+      if (parsed.type === "request") {
+        const { id, method, params } = parsed.payload;
 
+        switch (method) {
+          case "registerUser":
+            if (!params || !params.username) {
+              const error = jsonrpc.error(id, new jsonrpc.JsonRpcError("Missing username", -32602));
+              sendResponse(error);
+              return;
+            }
+            users.set(socket.id, params.username);
+            console.log(`User registered: ${params.username} (socket ${socket.id})`);
 
-    socket.on('typing', (username) => {
-      // broadcast to everyone except sender that 'username' is typing
-      socket.broadcast.emit('typing', username);
-    });
+            // Send successful response
+            sendResponse(jsonrpc.success(id, { registered: true }));
+            break;
 
-    socket.on('stop typing', (username) => {
-      // broadcast to everyone except sender that 'username' stopped typing
-      socket.broadcast.emit('stop typing', username);
-    });
+          case "sendMessage":
+            if (
+              !params || 
+              typeof params.user !== "string" || 
+              typeof params.text !== "string"
+            ) {
+              const error = jsonrpc.error(id, new jsonrpc.JsonRpcError("Invalid params for sendMessage", -32602));
+              sendResponse(error);
+              return;
+            }
+            console.log(`Message from ${params.user}: ${params.text}`);
+
+            // Broadcast wrapped as JSON-RPC notification to all clients
+            const notification = jsonrpc.notification("chatMessage", params);
+            io.emit("rpc", notification);
+            
+            // Send ack to sender
+            sendResponse(jsonrpc.success(id, { delivered: true }));
+            break;
+
+          case "typing":
+            if (!params || typeof params.username !== "string") {
+              const error = jsonrpc.error(id, new jsonrpc.JsonRpcError("Missing typing username", -32602));
+              sendResponse(error);
+              return;
+            }
+            // Broadcast typing notification to others
+            const typingNotif = jsonrpc.notification("typing", { username: params.username });
+            socket.broadcast.emit("rpc", typingNotif);
+            sendResponse(jsonrpc.success(id, {}));
+            break;
+
+          case "stopTyping":
+            if (!params || typeof params.username !== "string") {
+              const error = jsonrpc.error(id, new jsonrpc.JsonRpcError("Missing stopTyping username", -32602));
+              sendResponse(error);
+              return;
+            }
+            // Broadcast stopTyping notification
+            const stopTypingNotif = jsonrpc.notification("stopTyping", { username: params.username });
+            socket.broadcast.emit("rpc", stopTypingNotif);
+            sendResponse(jsonrpc.success(id, {}));
+            break;
+
+          default:
+            // Method not found
+            const error = jsonrpc.error(id, new jsonrpc.JsonRpcError("Method not found", -32601));
+            sendResponse(error);
+            break;
+        }
+      } else if (parsed.type === "invalid") {
+        console.warn("Invalid JSON-RPC message format:", payload);
+        if (payload && payload.id) {
+          const error = jsonrpc.error(payload.id, new jsonrpc.JsonRpcError("Invalid Request", -32600));
+          sendResponse(error);
+        }
+      }
+    }); // end rpc handler
 
     socket.on("disconnect", () => {
       const username = users.get(socket.id);
       users.delete(socket.id);
       console.log(`User disconnected: ${username || "Unknown"} (socket ${socket.id})`);
-    });
 
+      // Optionally broadcast that user went offline (you can implement if needed)
+    });
   });
 }

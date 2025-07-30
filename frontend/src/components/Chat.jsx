@@ -1,14 +1,27 @@
+// frontend/src/components/Chat.jsx
+
 import React, { useState, useEffect, useRef } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import { setUsername, addMessage, userTyping, userStopTyping } from "../store/chatSlice";
+import {
+  setUsername,
+  addMessage,
+  userTyping,
+  userStopTyping,
+  triggerAnimation,
+  resetAnimation,
+} from "../store/chatSlice";
 import socket from "../services/socket";
+import jsonrpc from "jsonrpc-lite";
 import MessageList from "./MessageList";
+import ThreeDIcon from "./ThreeDIcon";
 
 const Chat = () => {
   const dispatch = useDispatch();
+
   const username = useSelector((state) => state.chat.username);
   const messages = useSelector((state) => state.chat.messages);
   const typingUsers = useSelector((state) => state.chat.typingUsers);
+  const animationTrigger = useSelector((state) => state.chat.animationTrigger);
 
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
@@ -17,7 +30,7 @@ const Chat = () => {
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
 
-  // Prompt once after mount
+  // Prompt once after mount to get username
   useEffect(() => {
     if (usernamePrompted.current) return;
     usernamePrompted.current = true;
@@ -30,59 +43,89 @@ const Chat = () => {
     dispatch(setUsername(name));
   }, [dispatch]);
 
-  // Register socket event listener once when username is set
+  // Setup JSON-RPC listener on 'rpc' socket event
   useEffect(() => {
-    if (!username) return; // wait until username is set
+    if (!username) return;
 
-    const messageHandler = (data) => {
-      dispatch(addMessage(data));
+    // Remove any existing rpc listeners to prevent duplicates
+    socket.off("rpc");
+
+    const handleRpc = (payload) => {
+      const parsed = jsonrpc.parseObject(payload);
+
+      if (parsed.type === "notification") {
+        const { method, params } = parsed.payload;
+
+        switch (method) {
+          case "chatMessage":
+            dispatch(addMessage(params));
+            break;
+          case "typing":
+            dispatch(userTyping(params.username));
+            break;
+          case "stopTyping":
+            dispatch(userStopTyping(params.username));
+            break;
+          default:
+            console.warn("Unknown notification method:", method);
+        }
+      } else if (parsed.type === "success") {
+        // Handle JSON-RPC success responses
+        const { result } = parsed.payload;
+        if (result?.delivered) {
+          dispatch(triggerAnimation());
+          setTimeout(() => dispatch(resetAnimation()), 1500);
+        }
+      } else if (parsed.type === "error") {
+        console.error("RPC error:", parsed.payload.error);
+      }
     };
 
-    const typingHandler = (user) => {
-      dispatch(userTyping(user));
-    };
-
-    const stopTypingHandler = (user) => {
-      dispatch(userStopTyping(user));
-    };
-
-    socket.on("chat message", messageHandler);
-    socket.on("typing", typingHandler);
-    socket.on("stop typing", stopTypingHandler);
+    socket.on("rpc", handleRpc);
 
     return () => {
-      socket.off("chat message", messageHandler);
-      socket.off("typing", typingHandler);
-      socket.off("stop typing", stopTypingHandler);
+      socket.off("rpc", handleRpc);
     };
   }, [username, dispatch]);
 
+  // Auto-scroll chat to bottom on new message
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // Send a message as JSON-RPC request
   const sendMessage = () => {
     if (input.trim() === "") return;
 
-    const messageData = { user: username, text: input, timestamp: Date.now() };
-    socket.emit("chat message", messageData);
+    const requestId = Date.now(); // unique JSON-RPC request ID
+    const params = { user: username, text: input, timestamp: Date.now() };
+    const request = jsonrpc.request(requestId, "sendMessage", params);
+
+    socket.emit("rpc", request);
     setInput("");
-    // No local append; wait for server broadcast to update Redux state
   };
-  
-  
+
+  // Handle typing notifications as JSON-RPC requests
+  const sendTypingNotification = (eventName) => {
+    if (!username) return;
+    const requestId = Date.now();
+    const request = jsonrpc.request(requestId, eventName, { username });
+    socket.emit("rpc", request);
+  };
+
+  // Handle input changes and manage typing start/stop
   const handleInputChange = (e) => {
     setInput(e.target.value);
 
     if (!isTyping) {
       setIsTyping(true);
-      socket.emit("typing", username);
+      sendTypingNotification("typing");
     }
 
     clearTimeout(typingTimeoutRef.current);
     typingTimeoutRef.current = setTimeout(() => {
       setIsTyping(false);
-      socket.emit("stop typing", username);
+      sendTypingNotification("stopTyping");
     }, 1000); // 1 second after user stops typing
   };
 
@@ -97,18 +140,17 @@ const Chat = () => {
       </h2>
 
       <MessageList messages={messages} currentUsername={username} />
+      <ThreeDIcon trigger={animationTrigger} />
       <div ref={messagesEndRef} />
-      
-      {
-          typingUsers.length > 0 && (
-            <div className="text-sm text-gray-500 italic mb-2">
-              {typingUsers
-                .filter((user) => user !== username)  // Don't show "You are typing..."
-                .map((user) => `${user} is typing...`)
-                .join(", ")}
-            </div>
-          )
-        }
+
+      {typingUsers.length > 0 && (
+        <div className="text-sm text-gray-500 italic mb-2">
+          {typingUsers
+            .filter((user) => user !== username) // Don't show "You are typing..."
+            .map((user) => `${user} is typing...`)
+            .join(", ")}
+        </div>
+      )}
 
       <div className="flex space-x-2">
         <input

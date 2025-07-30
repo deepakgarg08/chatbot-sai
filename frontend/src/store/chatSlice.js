@@ -1,9 +1,11 @@
 import { createSlice } from '@reduxjs/toolkit';
 
+
 const initialState = {
   messages: [],
   username: '',
-  typingUsers: [], // Keep track of who is typing (array of usernames)
+  typingUsers: [], 
+  animationTrigger: false, // new state to trigger 3D icon animation
 };
 
 export const chatSlice = createSlice({
@@ -32,6 +34,12 @@ export const chatSlice = createSlice({
     clearTyping(state) {
       state.typingUsers = [];
     },
+    triggerAnimation(state) {
+      state.animationTrigger = true;
+    },
+    resetAnimation(state) {
+      state.animationTrigger = false;
+    },
   },
 });
 
@@ -42,5 +50,8 @@ export const {
   userTyping,
   userStopTyping,
   clearTyping,
+  triggerAnimation,
+  resetAnimation,
 } = chatSlice.actions;
+
 export default chatSlice.reducer;
