@@ -7,6 +7,7 @@ const initialState = {
   typingUsers: [],
   animationTrigger: false, // new state to trigger 3D icon animation
   iconState: 'static', // 'static' | 'sent' | 'received'
+  onlineUsers: [],
 };
 
 export const chatSlice = createSlice({
@@ -41,8 +42,11 @@ export const chatSlice = createSlice({
     resetAnimation(state) {
       state.animationTrigger = false;
     },
-     setIconState: (state, action) => {
+    setIconState: (state, action) => {
       state.iconState = action.payload; // 'static', 'sent', or 'received'
+    },
+    setOnlineUsers(state, action) {
+      state.onlineUsers = action.payload;
     },
   },
 });
@@ -56,7 +60,8 @@ export const {
   clearTyping,
   triggerAnimation,
   resetAnimation,
-  setIconState
+  setIconState,
+  setOnlineUsers,
 } = chatSlice.actions;
 
 export default chatSlice.reducer;

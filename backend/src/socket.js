@@ -3,6 +3,14 @@ import jsonrpc from "jsonrpc-lite";
 export default function setupSocket(io) {
   const users = new Map();
 
+  function broadcastOnlineUsers() {
+console.log('✌️broadcastOnlineUsers --->');
+    const onlineUsers = Array.from(users.values());
+    console.log('✌️onlineUsers --->', onlineUsers);
+
+    io.emit("rpc", jsonrpc.notification("onlineUsers", { users: onlineUsers }));
+  }
+
   io.on("connection", (socket) => {
     console.log(`User connected: ${socket.id}`);
 
@@ -38,15 +46,19 @@ export default function setupSocket(io) {
             }
             users.set(socket.id, params.username);
             console.log(`User registered: ${params.username} (socket ${socket.id})`);
-
             // Send successful response
             sendResponse(jsonrpc.success(id, { registered: true }));
+
+
+            console.log("check am i fired")
+            // Broadcast updated online users list to all clients
+            broadcastOnlineUsers();
             break;
 
           case "sendMessage":
             if (
-              !params || 
-              typeof params.user !== "string" || 
+              !params ||
+              typeof params.user !== "string" ||
               typeof params.text !== "string"
             ) {
               const error = jsonrpc.error(id, new jsonrpc.JsonRpcError("Invalid params for sendMessage", -32602));
@@ -58,7 +70,7 @@ export default function setupSocket(io) {
             // Broadcast wrapped as JSON-RPC notification to all clients
             const notification = jsonrpc.notification("chatMessage", params);
             io.emit("rpc", notification);
-            
+
             // Send ack to sender
             sendResponse(jsonrpc.success(id, { delivered: true }));
             break;
@@ -87,6 +99,11 @@ export default function setupSocket(io) {
             sendResponse(jsonrpc.success(id, {}));
             break;
 
+          case "getOnlineUsers":
+            // Return the current list of online users
+            sendResponse(jsonrpc.success(id, { users: Array.from(users.values()) }));
+            break;
+
           default:
             // Method not found
             const error = jsonrpc.error(id, new jsonrpc.JsonRpcError("Method not found", -32601));
@@ -107,7 +124,8 @@ export default function setupSocket(io) {
       users.delete(socket.id);
       console.log(`User disconnected: ${username || "Unknown"} (socket ${socket.id})`);
 
-      // Optionally broadcast that user went offline (you can implement if needed)
+      // Broadcast updated online users list after disconnect
+      broadcastOnlineUsers();
     });
   });
 }

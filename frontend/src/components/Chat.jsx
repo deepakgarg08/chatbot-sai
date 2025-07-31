@@ -7,7 +7,8 @@ import {
   userStopTyping,
   triggerAnimation,
   resetAnimation,
-  setIconState
+  setIconState,
+  setOnlineUsers
 } from "../store/chatSlice";
 import socket from "../services/socket";
 import jsonrpc from "jsonrpc-lite";
@@ -31,6 +32,8 @@ const Chat = () => {
   const typingTimeoutRef = useRef(null);
   const iconState = useSelector(state => state.chat.iconState);
 
+  const onlineUsers = useSelector((state) => state.chat.onlineUsers || []);
+
   const avatars = messages.reduce((map, msg) => {
     if (!map[msg.user]) map[msg.user] = `https://ui-avatars.com/api/?name=${msg.user}`;
     return map;
@@ -48,6 +51,17 @@ const Chat = () => {
     }
     dispatch(setUsername(name));
   }, [dispatch]);
+
+  useEffect(() => {
+    if (!username) return;
+
+    // Send registration request once username is set
+    const requestId = Date.now(); // or any unique id
+    const registerRequest = jsonrpc.request(requestId, "registerUser", { username });
+    socket.emit("rpc", registerRequest);
+
+    // Optionally listen for response to confirm registration succeeded
+  }, [username]);
 
   // Setup JSON-RPC listener on 'rpc' socket event
   useEffect(() => {
@@ -76,6 +90,11 @@ const Chat = () => {
             break;
           case "stopTyping":
             dispatch(userStopTyping(params.username));
+            break;
+          case "onlineUsers":
+            if (params && Array.isArray(params.users)) {
+              dispatch(setOnlineUsers(params.users));
+            }
             break;
           default:
             console.warn("Unknown notification method:", method);
@@ -152,23 +171,41 @@ const Chat = () => {
 
   return (
     <div className="min-h-screen flex justify-center items-center bg-gray-100 p-6">
-      {/* Left 3D Icon (no chat window changes) */}
+
+      {/* Left 3D Icon */}
       <div className="hidden lg:flex items-center mr-8">
         <ThreeDIcon state={iconState} side="receiver" size="large" animTrigger={animationTrigger} />
       </div>
 
-      {/* Your existing chat container, unchanged */}
       <div className="flex flex-col w-full max-w-lg h-[80vh] bg-white rounded-3xl shadow-lg border border-gray-200 overflow-hidden">
-        {/* All chat window content goes here as before */}
-        {/* Header, ChatWindow, typing notices, input etc. */}
+
+        {/* Header */}
         <header className="px-6 py-4 bg-white border-b border-gray-200 text-xl font-semibold sticky top-0 z-10">
           <span className="text-indigo-600">{username}</span>
         </header>
 
+        {/* Online users panel */}
+        <aside className="bg-gray-50 border-r border-gray-300 p-4 max-h-[300px] overflow-auto mb-2">
+          <h4 className="font-semibold mb-2">Online Users</h4>
+          {onlineUsers.length === 0 ? (
+            <p>No users online</p>
+          ) : (
+            <ul>
+              {onlineUsers.map((user) => (
+                <li key={user} className={`py-1 ${user === username ? "font-bold text-indigo-600" : ""}`}>
+                  {user}
+                </li>
+              ))}
+            </ul>
+          )}
+        </aside>
+
+        {/* Chat messages */}
         <div className="flex-grow overflow-hidden p-6 bg-gray-50 rounded-3xl mx-6 my-4 shadow-inner max-w-full md:max-w-3xl mx-auto">
           <ChatWindow messages={messages} currentUser={username} avatars={avatars} />
         </div>
 
+        {/* Typing users */}
         {typingUsers.length > 0 && (
           <div className="text-sm text-gray-500 italic mb-2 px-6">
             {typingUsers
@@ -178,14 +215,16 @@ const Chat = () => {
           </div>
         )}
 
+        {/* Input */}
         <ChatInput inputValue={input} setInputValue={setInput} onSend={sendMessage} />
       </div>
 
-      {/* Right 3D Icon (no chat window changes) */}
+      {/* Right 3D Icon */}
       <div className="hidden lg:flex items-center ml-8">
         <ThreeDIcon state={iconState} side="sender" size="large" animTrigger={animationTrigger} />
       </div>
     </div>
+
   );
 
 
