@@ -10,7 +10,6 @@ import {
 } from "../store/chatSlice";
 import socket from "../services/socket";
 import jsonrpc from "jsonrpc-lite";
-import MessageList from "./MessageList";
 import ThreeDIcon from "./ThreeDIcon";
 import ChatWindow from "./ChatWindow";
 import ChatInput from "./ChatInput";
@@ -29,6 +28,11 @@ const Chat = () => {
   const usernamePrompted = useRef(false);
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
+
+  const avatars = messages.reduce((map, msg) => {
+    if (!map[msg.user]) map[msg.user] = `https://ui-avatars.com/api/?name=${msg.user}`;
+    return map;
+  }, {});
 
   // Prompt once after mount to get username
   useEffect(() => {
@@ -94,16 +98,21 @@ const Chat = () => {
   }, [messages]);
 
   // Send a message as JSON-RPC request
-  const sendMessage = () => {
-    if (input.trim() === "") return;
+  const sendMessage = (messageText = input) => {
+    if (messageText.trim() === "") return;
 
-    const requestId = Date.now(); // unique JSON-RPC request ID
-    const params = { user: username, text: input, timestamp: Date.now() };
+    const requestId = Date.now();
+    const params = { user: username, text: messageText, timestamp: Date.now() };
     const request = jsonrpc.request(requestId, "sendMessage", params);
 
     socket.emit("rpc", request);
-    setInput("");
+
+    // Only clear input if sending the current input value
+    if (messageText === input) {
+      setInput("");
+    }
   };
+
 
   // Handle typing notifications as JSON-RPC requests
   const sendTypingNotification = (eventName) => {
@@ -134,34 +143,34 @@ const Chat = () => {
   }
 
   return (
-    <div className="flex flex-col h-full max-w-2xl mx-auto p-4">
-      <h2 className="text-xl font-bold mb-4">
-        Chat as <span className="text-indigo-600">{username}</span>
-      </h2>
+    <div className="min-h-screen flex justify-center items-center bg-gray-100">
+      <div className="flex flex-col w-full max-w-lg h-[80vh] bg-white rounded-3xl shadow-lg border border-gray-200 overflow-hidden">
+        <header className="px-6 py-4 bg-white border-b border-gray-200 text-xl font-semibold sticky top-0 z-10">
+          <span className="text-indigo-600">Chat as {username}</span>
+        </header>
 
-      <ChatWindow messages={messages} currentUser={username} />
+        <ChatWindow messages={messages} currentUser={username} avatars={avatars} />
 
-      {/* 3D Icon */}
-      <ThreeDIcon trigger={animationTrigger} className="mb-4 w-20 h-20 sm:w-24 sm:h-24" />
+        {/* 3D Icon */}
+        <ThreeDIcon trigger={animationTrigger} className="mb-4 w-20 h-20 sm:w-24 sm:h-24" />
 
-      {/* Typing Notifications */}
-      {typingUsers.length > 0 && (
-        <div className="text-sm text-gray-500 italic mb-2">
-          {typingUsers
-            .filter((user) => user !== username)
-            .map((user) => `${user} is typing...`)
-            .join(", ")}
-        </div>
-      )}
+        {/* Typing Notifications */}
+        {typingUsers.length > 0 && (
+          <div className="text-sm text-gray-500 italic mb-2">
+            {typingUsers
+              .filter((user) => user !== username)
+              .map((user) => `${user} is typing...`)
+              .join(", ")}
+          </div>
+        )}
 
-      {/* Input Area */}
-      <ChatInput
-        inputValue={input}
-        setInputValue={setInput}
-        onSend={(msg) => {
-          sendMessage(msg);
-        }}
-      />
+        {/* Input Area */}
+        <ChatInput
+          inputValue={input}
+          setInputValue={setInput}
+          onSend={sendMessage}
+        />
+      </div>
     </div>
   );
 

@@ -1,22 +1,26 @@
-import React, { useEffect, useRef } from "react";
-import ChatMessage from "./ChatMessage";
+import React, { useEffect, useRef } from 'react';
+import ChatMessage from './ChatMessage';
 
-const ChatWindow = ({ messages, currentUser }) => {
+const ChatWindow = ({ messages, currentUser, avatars = {} }) => {
   const messagesEndRef = useRef(null);
-console.log("ChatWindow rendered")
-  // Scroll to bottom when messages change
+
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
   return (
-    
-    <div className="bg-red-300 flex flex-col h-full p-4 overflow-y-auto bg-white rounded-lg border border-gray-300 flex-grow mb-4 max-h-[60vh]">
-      {messages.map((msg, index) => (
-        <ChatMessage key={index} message={msg} isOwnMessage={msg.user === currentUser} />
+    <div className="flex-1 overflow-y-auto px-4 py-6 bg-gray-50">
+      {messages.map((msg, idx) => (
+        <ChatMessage
+          key={idx}
+          message={msg}
+          isOwnMessage={msg.user === currentUser}
+          avatarUrl={avatars[msg.user]}
+        />
       ))}
       <div ref={messagesEndRef} />
     </div>
+
   );
 };
 

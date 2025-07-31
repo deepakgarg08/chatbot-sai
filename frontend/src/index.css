@@ -1,13 +1,14 @@
-/* @import "tailwindcss";
- */
-
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
 
-:root {
-    font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+*{
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+/* :root { */
+    /* font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
     line-height: 1.5;
     font-weight: 400;
 
@@ -18,10 +19,10 @@
     font-synthesis: none;
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-}
+    -moz-osx-font-smoothing: grayscale; */
+/* } */
 
-a {
+/* a {
     font-weight: 500;
     color: #646cff;
     text-decoration: inherit;
@@ -73,4 +74,4 @@ button:focus-visible {
     button {
         background-color: #f9f9f9;
     }
-}
+} */
