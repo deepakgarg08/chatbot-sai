@@ -12,6 +12,8 @@ import socket from "../services/socket";
 import jsonrpc from "jsonrpc-lite";
 import MessageList from "./MessageList";
 import ThreeDIcon from "./ThreeDIcon";
+import ChatWindow from "./ChatWindow";
+import ChatInput from "./ChatInput";
 
 const Chat = () => {
   const dispatch = useDispatch();
@@ -132,17 +134,17 @@ const Chat = () => {
   }
 
   return (
-    <div className="max-w-2xl mx-auto p-4 flex flex-col h-screen">
+    <div className="flex flex-col h-full max-w-2xl mx-auto p-4">
       <h2 className="text-xl font-bold mb-4">
         Chat as <span className="text-indigo-600">{username}</span>
       </h2>
 
-      <MessageList messages={messages} currentUsername={username} className="flex-grow mb-4" />
+      <ChatWindow messages={messages} currentUser={username} />
 
+      {/* 3D Icon */}
       <ThreeDIcon trigger={animationTrigger} className="mb-4 w-20 h-20 sm:w-24 sm:h-24" />
 
-      <div ref={messagesEndRef} />
-
+      {/* Typing Notifications */}
       {typingUsers.length > 0 && (
         <div className="text-sm text-gray-500 italic mb-2">
           {typingUsers
@@ -152,25 +154,17 @@ const Chat = () => {
         </div>
       )}
 
-      <div className="flex space-x-2">
-        <input
-          type="text"
-          className="flex-grow border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-600"
-          value={input}
-          onChange={handleInputChange}
-          onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-          placeholder="Type a message..."
-          autoFocus
-        />
-        <button
-          className="bg-indigo-600 text-white px-4 rounded hover:bg-indigo-700"
-          onClick={sendMessage}
-        >
-          Send
-        </button>
-      </div>
+      {/* Input Area */}
+      <ChatInput
+        inputValue={input}
+        setInputValue={setInput}
+        onSend={(msg) => {
+          sendMessage(msg);
+        }}
+      />
     </div>
   );
+
 };
 
 export default Chat;
