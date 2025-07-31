@@ -7,6 +7,7 @@ import {
   userStopTyping,
   triggerAnimation,
   resetAnimation,
+  setIconState
 } from "../store/chatSlice";
 import socket from "../services/socket";
 import jsonrpc from "jsonrpc-lite";
@@ -28,6 +29,7 @@ const Chat = () => {
   const usernamePrompted = useRef(false);
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
+  const iconState = useSelector(state => state.chat.iconState);
 
   const avatars = messages.reduce((map, msg) => {
     if (!map[msg.user]) map[msg.user] = `https://ui-avatars.com/api/?name=${msg.user}`;
@@ -63,6 +65,11 @@ const Chat = () => {
         switch (method) {
           case "chatMessage":
             dispatch(addMessage(params));
+
+            if (params.user !== username) {
+              dispatch(setIconState('received'));
+              setTimeout(() => dispatch(setIconState('static')), 800);
+            }
             break;
           case "typing":
             dispatch(userTyping(params.username));
@@ -104,7 +111,8 @@ const Chat = () => {
     const requestId = Date.now();
     const params = { user: username, text: messageText, timestamp: Date.now() };
     const request = jsonrpc.request(requestId, "sendMessage", params);
-
+    dispatch(setIconState('sent'));
+    setTimeout(() => dispatch(setIconState('static')), 800);
     socket.emit("rpc", request);
 
     // Only clear input if sending the current input value
@@ -146,13 +154,16 @@ const Chat = () => {
     <div className="min-h-screen flex justify-center items-center bg-gray-100">
       <div className="flex flex-col w-full max-w-lg h-[80vh] bg-white rounded-3xl shadow-lg border border-gray-200 overflow-hidden">
         <header className="px-6 py-4 bg-white border-b border-gray-200 text-xl font-semibold sticky top-0 z-10">
-          <span className="text-indigo-600">Chat as {username}</span>
+          <span className="text-indigo-600">{username}</span>
         </header>
 
-        <ChatWindow messages={messages} currentUser={username} avatars={avatars} />
+        <div className="flex-grow overflow-hidden p-6 bg-gray-50 rounded-3xl mx-6 my-4 shadow-inner max-w-full md:max-w-3xl mx-auto">
+          <ChatWindow messages={messages} currentUser={username} avatars={avatars} />
+        </div>
+
 
         {/* 3D Icon */}
-        <ThreeDIcon trigger={animationTrigger} className="mb-4 w-20 h-20 sm:w-24 sm:h-24" />
+        <ThreeDIcon trigger={animationTrigger} state={iconState} className="mb-4 w-20 h-20 sm:w-24 sm:h-24" />
 
         {/* Typing Notifications */}
         {typingUsers.length > 0 && (

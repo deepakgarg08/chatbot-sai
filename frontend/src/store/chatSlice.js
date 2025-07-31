@@ -4,8 +4,9 @@ import { createSlice } from '@reduxjs/toolkit';
 const initialState = {
   messages: [],
   username: '',
-  typingUsers: [], 
+  typingUsers: [],
   animationTrigger: false, // new state to trigger 3D icon animation
+  iconState: 'static', // 'static' | 'sent' | 'received'
 };
 
 export const chatSlice = createSlice({
@@ -40,6 +41,9 @@ export const chatSlice = createSlice({
     resetAnimation(state) {
       state.animationTrigger = false;
     },
+     setIconState: (state, action) => {
+      state.iconState = action.payload; // 'static', 'sent', or 'received'
+    },
   },
 });
 
@@ -52,6 +56,7 @@ export const {
   clearTyping,
   triggerAnimation,
   resetAnimation,
+  setIconState
 } = chatSlice.actions;
 
 export default chatSlice.reducer;
