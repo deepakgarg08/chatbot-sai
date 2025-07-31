@@ -151,8 +151,16 @@ const Chat = () => {
   }
 
   return (
-    <div className="min-h-screen flex justify-center items-center bg-gray-100">
+    <div className="min-h-screen flex justify-center items-center bg-gray-100 p-6">
+      {/* Left 3D Icon (no chat window changes) */}
+      <div className="hidden lg:flex items-center mr-8">
+        <ThreeDIcon state={iconState} side="receiver" size="large" animTrigger={animationTrigger} />
+      </div>
+
+      {/* Your existing chat container, unchanged */}
       <div className="flex flex-col w-full max-w-lg h-[80vh] bg-white rounded-3xl shadow-lg border border-gray-200 overflow-hidden">
+        {/* All chat window content goes here as before */}
+        {/* Header, ChatWindow, typing notices, input etc. */}
         <header className="px-6 py-4 bg-white border-b border-gray-200 text-xl font-semibold sticky top-0 z-10">
           <span className="text-indigo-600">{username}</span>
         </header>
@@ -161,13 +169,8 @@ const Chat = () => {
           <ChatWindow messages={messages} currentUser={username} avatars={avatars} />
         </div>
 
-
-        {/* 3D Icon */}
-        <ThreeDIcon trigger={animationTrigger} state={iconState} className="mb-4 w-20 h-20 sm:w-24 sm:h-24" />
-
-        {/* Typing Notifications */}
         {typingUsers.length > 0 && (
-          <div className="text-sm text-gray-500 italic mb-2">
+          <div className="text-sm text-gray-500 italic mb-2 px-6">
             {typingUsers
               .filter((user) => user !== username)
               .map((user) => `${user} is typing...`)
@@ -175,15 +178,16 @@ const Chat = () => {
           </div>
         )}
 
-        {/* Input Area */}
-        <ChatInput
-          inputValue={input}
-          setInputValue={setInput}
-          onSend={sendMessage}
-        />
+        <ChatInput inputValue={input} setInputValue={setInput} onSend={sendMessage} />
+      </div>
+
+      {/* Right 3D Icon (no chat window changes) */}
+      <div className="hidden lg:flex items-center ml-8">
+        <ThreeDIcon state={iconState} side="sender" size="large" animTrigger={animationTrigger} />
       </div>
     </div>
   );
+
 
 };
 
