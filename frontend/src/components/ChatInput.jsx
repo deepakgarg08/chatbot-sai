@@ -1,6 +1,6 @@
 import React from 'react';
 
-const ChatInput = ({ inputValue, setInputValue, onSend }) => {
+const ChatInput = ({ inputValue, setInputValue, onSend, onChange }) => {
   const handleSubmit = e => {
     e.preventDefault();
     const trimmed = inputValue.trim();
@@ -20,7 +20,7 @@ const ChatInput = ({ inputValue, setInputValue, onSend }) => {
         className="flex-grow mr-4 py-3 px-5 bg-gray-100 rounded-full text-base placeholder-gray-400 border border-gray-300 shadow-sm focus:outline-none focus:ring-4 focus:ring-purple-400"
         placeholder="Type your message..."
         value={inputValue}
-        onChange={e => setInputValue(e.target.value)}
+        onChange={onChange || (e => setInputValue(e.target.value))}
         maxLength={500}
         autoComplete="off"
       />

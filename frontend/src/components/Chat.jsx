@@ -160,7 +160,11 @@ const Chat = () => {
     const params = { user: username, text: messageText, timestamp: Date.now() };
     const request = jsonrpc.request(requestId, "sendMessage", params);
     dispatch(setIconState("sent"));
-    setTimeout(() => dispatch(setIconState("static")), 800);
+    setTimeout(() => dispatch(setIconState("static")), 5000);
+    // Trigger 3D icon animation
+    dispatch(setIconState("sent"));
+    setTimeout(() => dispatch(setIconState("static")), 5000);
+
     socket.emit("rpc", request);
     if (messageText === input) setInput("");
   };
@@ -177,6 +181,10 @@ const Chat = () => {
       timestamp: Date.now(),
     };
     const request = jsonrpc.request(requestId, "sendPrivateMessage", params);
+
+    // Trigger 3D icon animation
+    dispatch(setIconState("sent"));
+    setTimeout(() => dispatch(setIconState("static")), 800);
 
     socket.emit("rpc", request);
 
@@ -203,6 +211,10 @@ const Chat = () => {
     const params = { username };
     if (activePrivateChat) params.target = activePrivateChat;
     const request = jsonrpc.request(requestId, eventName, params);
+    // Trigger 3D icon animation
+    dispatch(setIconState("sent"));
+    setTimeout(() => dispatch(setIconState("static")), 800);
+
     socket.emit("rpc", request);
   };
 
@@ -272,7 +284,7 @@ const Chat = () => {
 
           {onlineUsers.length === 0 ? <p>No users online</p> : (
             <ul>
-              {onlineUsers.map((user) => (
+              {onlineUsers.filter(user => user !== username).map((user) => (
                 <li
                   key={user}
                   className={`py-1 cursor-pointer flex justify-between items-center ${user === username
@@ -281,11 +293,11 @@ const Chat = () => {
                       ? "font-semibold text-indigo-700"
                       : ""
                     }`}
-                  onClick={() => user !== username && handleUserClick(user)}
-                  title={user === username ? "It's You" : ""}
+                  onClick={() => handleUserClick(user)}
+                  
                 >
                   <span>{user}</span>
-                  {user !== username && unreadCounts[user] > 0 && (
+                  {unreadCounts[user] > 0 && (
                     <span
                       className="inline-block w-3 h-3 bg-red-500 rounded-full ml-2"
                       title={`${unreadCounts[user]} new message${unreadCounts[user] > 1 ? "s" : ""}`}
