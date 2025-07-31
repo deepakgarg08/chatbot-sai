@@ -1,5 +1,3 @@
-// frontend/src/components/Chat.jsx
-
 import React, { useState, useEffect, useRef } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import {
@@ -134,19 +132,21 @@ const Chat = () => {
   }
 
   return (
-    <div className="max-w-2xl mx-auto p-4">
+    <div className="max-w-2xl mx-auto p-4 flex flex-col h-screen">
       <h2 className="text-xl font-bold mb-4">
         Chat as <span className="text-indigo-600">{username}</span>
       </h2>
 
-      <MessageList messages={messages} currentUsername={username} />
-      <ThreeDIcon trigger={animationTrigger} />
+      <MessageList messages={messages} currentUsername={username} className="flex-grow mb-4" />
+
+      <ThreeDIcon trigger={animationTrigger} className="mb-4 w-20 h-20 sm:w-24 sm:h-24" />
+
       <div ref={messagesEndRef} />
 
       {typingUsers.length > 0 && (
         <div className="text-sm text-gray-500 italic mb-2">
           {typingUsers
-            .filter((user) => user !== username) // Don't show "You are typing..."
+            .filter((user) => user !== username)
             .map((user) => `${user} is typing...`)
             .join(", ")}
         </div>
