@@ -7,5 +7,6 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
     port: 3000, // Set your desired dev server port here
+    host: "0.0.0.0", // Bind to all interfaces for Docker compatibility
   },
 });
