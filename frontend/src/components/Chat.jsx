@@ -13,12 +13,53 @@ import {
   addPrivateMessage,
   setActivePrivateChat,
   resetUnreadCount,
+  setMessages,
 } from "../store/chatSlice";
 import socket from "../services/socket";
 import jsonrpc from "jsonrpc-lite";
 import ThreeDIcon from "./ThreeDIcon";
 import ChatWindow from "./ChatWindow";
 import ChatInput from "./ChatInput";
+import OnlineUsers from "./OnlineUsers";
+
+// Session persistence functions
+const SESSION_USERNAME_KEY = "chat_username";
+
+const saveUsernameToStorage = (username) => {
+  try {
+    localStorage.setItem(SESSION_USERNAME_KEY, username);
+    console.log("💾 Username saved to localStorage:", username);
+  } catch (error) {
+    console.warn("⚠️ Failed to save username to localStorage:", error);
+  }
+};
+
+const getUsernameFromStorage = () => {
+  try {
+    const username = localStorage.getItem(SESSION_USERNAME_KEY);
+    console.log("📖 Username loaded from localStorage:", username);
+    return username;
+  } catch (error) {
+    console.warn("⚠️ Failed to load username from localStorage:", error);
+    return null;
+  }
+};
+
+const clearUsernameFromStorage = () => {
+  try {
+    localStorage.removeItem(SESSION_USERNAME_KEY);
+    console.log("🗑️ Username cleared from localStorage");
+  } catch (error) {
+    console.warn("⚠️ Failed to clear username from localStorage:", error);
+  }
+};
+
+const loadChatHistory = (socket, dispatch) => {
+  console.log("📚 Requesting chat history from server...");
+  const requestId = Date.now();
+  const request = jsonrpc.request(requestId, "getChatHistory", {});
+  socket.emit("rpc", request);
+};
 
 const Chat = () => {
   const dispatch = useDispatch();
@@ -31,7 +72,9 @@ const Chat = () => {
   const iconState = useSelector((state) => state.chat.iconState);
 
   const onlineUsers = useSelector((state) => state.chat.onlineUsers || []);
-  const activePrivateChat = useSelector((state) => state.chat.activePrivateChat);
+  const activePrivateChat = useSelector(
+    (state) => state.chat.activePrivateChat,
+  );
   const unreadCounts = useSelector((state) => state.chat.unreadCounts);
   const privateChats = useSelector((state) => state.chat.privateChats || {});
 
@@ -46,34 +89,57 @@ const Chat = () => {
 
   // Avatars for public chat messages (You can extend avatars for private chat if needed)
   const avatars = messages.reduce((map, msg) => {
-    if (!map[msg.user]) map[msg.user] = `https://ui-avatars.com/api/?name=${msg.user}`;
+    if (!map[msg.user])
+      map[msg.user] = `https://ui-avatars.com/api/?name=${msg.user}`;
     return map;
   }, {});
-
 
   // Log privateChats whenever it changes
   useEffect(() => {
     console.log("Current privateChats state:", privateChats);
   }, [privateChats]);
 
-  // Prompt username once on mount
+  // Check for saved username or prompt for new one
   useEffect(() => {
     if (usernamePrompted.current) return;
     usernamePrompted.current = true;
 
-    let name = "";
-    while (!name) {
-      name = prompt("Enter your username")?.trim();
-      if (!name) alert("Please enter a valid username.");
+    // First, try to get username from localStorage
+    let name = getUsernameFromStorage();
+    console.log("🔍 Session check - Found saved username:", name);
+
+    // If no saved username, prompt for one
+    if (!name) {
+      console.log("❓ No saved username found, prompting user...");
+      while (!name) {
+        name = prompt("Enter your username (or type 'clear' to reset)")?.trim();
+        if (name === "clear") {
+          clearUsernameFromStorage();
+          name = null;
+          continue;
+        }
+        if (!name) alert("Please enter a valid username.");
+      }
+      console.log("✅ New username entered:", name);
+    } else {
+      console.log("🔄 Using saved username for session restoration");
     }
+
     dispatch(setUsername(name));
   }, [dispatch]);
 
   // Register user with backend once username is set
   useEffect(() => {
     if (!username) return;
+
+    // Save username to localStorage for persistence
+    saveUsernameToStorage(username);
+    console.log("🔗 Registering user with backend:", username);
+
     const requestId = Date.now();
-    const registerRequest = jsonrpc.request(requestId, "registerUser", { username });
+    const registerRequest = jsonrpc.request(requestId, "registerUser", {
+      username,
+    });
     socket.emit("rpc", registerRequest);
   }, [username]);
 
@@ -119,11 +185,13 @@ const Chat = () => {
               dispatch(setOnlineUsers(params.users));
             }
             break;
+          case "chatHistory":
+
           case "privateMessage":
             dispatch(
               addPrivateMessage({
                 from: params.from,
-                to: username,          // current user is recipient
+                to: username, // current user is recipient
                 text: params.text,
                 timestamp: params.timestamp,
               }),
@@ -135,9 +203,56 @@ const Chat = () => {
         }
       } else if (parsed.type === "success") {
         const { result } = parsed.payload;
+
+        // Handle user registration success - load chat history
+        if (result?.registered) {
+          console.log(
+            "✅ User registered successfully, loading chat history...",
+          );
+          // Small delay to ensure registration is complete
+          setTimeout(() => {
+            loadChatHistory(socket, dispatch);
+          }, 100);
+        }
+
+        // Handle delivery confirmation
         if (result?.delivered) {
           dispatch(triggerAnimation());
           setTimeout(() => dispatch(resetAnimation()), 1500);
+        }
+
+        // Handle chat history response
+        if (result?.publicMessages || result?.privateChats) {
+          console.log("📚 Received chat history from server");
+
+          // Load public messages
+          if (result.publicMessages && Array.isArray(result.publicMessages)) {
+            dispatch(setMessages(result.publicMessages));
+            console.log(
+              `📬 Loaded ${result.publicMessages.length} public messages`,
+            );
+          }
+
+          // Load private chats
+          if (result.privateChats && typeof result.privateChats === "object") {
+            Object.entries(result.privateChats).forEach(
+              ([otherUser, messages]) => {
+                messages.forEach((message) => {
+                  dispatch(
+                    addPrivateMessage({
+                      from: message.from,
+                      to: message.to,
+                      text: message.text,
+                      timestamp: message.timestamp,
+                    }),
+                  );
+                });
+              },
+            );
+            console.log(
+              `🔒 Loaded private chats with ${Object.keys(result.privateChats).length} users`,
+            );
+          }
         }
       } else if (parsed.type === "error") {
         console.error("RPC error:", parsed.payload.error);
@@ -192,7 +307,7 @@ const Chat = () => {
     dispatch(
       addPrivateMessage({
         from: username,
-        to: activePrivateChat,     // recipient username
+        to: activePrivateChat, // recipient username
         text: messageText,
         timestamp: params.timestamp,
       }),
@@ -202,7 +317,6 @@ const Chat = () => {
       setInput("");
     }
   };
-
 
   // Send typing notifications including activePrivateChat target if in private chat
   const sendTypingNotification = (eventName) => {
@@ -239,107 +353,141 @@ const Chat = () => {
     setInput("");
   };
 
-  // Add a “Public Chat” button click handler to switch back to public chat
+  // Add a "Public Chat" button click handler to switch back to public chat
   const handlePublicChatClick = () => {
     dispatch(setActivePrivateChat(null));
     setInput("");
   };
 
+  // Handle clearing session and reloading
+  const handleClearSession = () => {
+    clearUsernameFromStorage();
+    window.location.reload();
+  };
+
   // Messages to display depend on chat mode: public or private
-  const displayedMessages = activePrivateChat ? (privateChats[activePrivateChat] || []) : messages;
+  const displayedMessages = activePrivateChat
+    ? privateChats[activePrivateChat] || []
+    : messages;
 
   if (!username) {
     return <div>Loading...</div>;
   }
 
   return (
-    <div className="min-h-screen flex justify-center items-center bg-gray-100 p-6">
-      {/* Left 3D Icon */}
-      <div className="hidden lg:flex items-center mr-8">
-        <ThreeDIcon state={iconState} side="receiver" size="large" animTrigger={animationTrigger} />
-      </div>
-
-      {/* Main Chat Container */}
-      <div className="flex flex-col w-full max-w-lg h-[80vh] bg-white rounded-3xl shadow-lg border border-gray-200 overflow-hidden">
-
-        {/* Header */}
-        <header className="px-6 py-4 bg-white border-b border-gray-200 text-xl font-semibold sticky top-0 z-10">
-          <span className="text-indigo-600">
-            {username}
-            {activePrivateChat ? ` (Chatting privately with ${activePrivateChat})` : " (Public Chat)"}
-          </span>
-        </header>
-
-        {/* Online Users Panel + Public Chat button */}
-        <aside className="bg-gray-50 border-r border-gray-300 p-4 max-h-[300px] overflow-auto mb-2">
-          <h4 className="font-semibold mb-2">Online Users</h4>
-
-          <button
-            className={`mb-2 px-3 py-1 rounded border w-full ${activePrivateChat === null ? "bg-indigo-600 text-white" : "bg-gray-200"
-              }`}
-            onClick={handlePublicChatClick}
-          >
-            Public Chat
-          </button>
-
-          {onlineUsers.length === 0 ? <p>No users online</p> : (
-            <ul>
-              {onlineUsers.filter(user => user !== username).map((user) => (
-                <li
-                  key={user}
-                  className={`py-1 cursor-pointer flex justify-between items-center ${user === username
-                    ? "font-bold text-indigo-600"
-                    : activePrivateChat === user
-                      ? "font-semibold text-indigo-700"
-                      : ""
-                    }`}
-                  onClick={() => handleUserClick(user)}
-                  
-                >
-                  <span>{user}</span>
-                  {unreadCounts[user] > 0 && (
-                    <span
-                      className="inline-block w-3 h-3 bg-red-500 rounded-full ml-2"
-                      title={`${unreadCounts[user]} new message${unreadCounts[user] > 1 ? "s" : ""}`}
-                    />
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
-        </aside>
-
-        {/* Chat message window and input */}
-        <div className="flex-grow overflow-hidden p-6 bg-gray-50 rounded-3xl mx-6 my-4 shadow-inner max-w-full md:max-w-3xl mx-auto flex flex-col">
-          <ChatWindow
-            messages={displayedMessages}
-            currentUser={username}
-            avatars={avatars}
-          />
-          <div ref={messagesEndRef} />
-          <ChatInput
-            inputValue={input}
-            setInputValue={setInput}
-            onSend={activePrivateChat ? sendPrivateMessage : sendMessage}
-            onChange={handleInputChange}
+    <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 p-4">
+      <div className="max-w-7xl mx-auto h-screen flex gap-6 py-6">
+        {/* Left 3D Icon */}
+        <div className="hidden xl:flex items-center">
+          <ThreeDIcon
+            state={iconState}
+            side="receiver"
+            size="large"
+            animTrigger={animationTrigger}
           />
         </div>
 
-        {/* Typing status */}
-        {typingUsers.length > 0 && (
-          <div className="text-sm text-gray-500 italic mb-2 px-6">
-            {typingUsers
-              .filter((user) => user !== username)
-              .map((user) => `${user} is typing...`)
-              .join(", ")}
+        {/* Online Users Sidebar */}
+        <div className="w-80 hidden md:block">
+          <OnlineUsers
+            onlineUsers={onlineUsers}
+            currentUsername={username}
+            activePrivateChat={activePrivateChat}
+            unreadCounts={unreadCounts}
+            onUserClick={handleUserClick}
+            onPublicChatClick={handlePublicChatClick}
+            onClearSession={handleClearSession}
+          />
+        </div>
+
+        {/* Main Chat Container */}
+        <div className="flex-1 max-w-4xl mx-auto">
+          <div className="h-full bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden flex flex-col">
+            {/* Header */}
+            <header className="px-6 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h1 className="text-xl font-bold">
+                    {activePrivateChat ? `${activePrivateChat}` : "Public Chat"}
+                  </h1>
+                  <p className="text-indigo-100 text-sm">
+                    {activePrivateChat
+                      ? `Private conversation with ${activePrivateChat}`
+                      : `Chatting as ${username} • ${onlineUsers.length} users online`}
+                  </p>
+                </div>
+
+                {/* Mobile Users Button */}
+                <button className="md:hidden p-2 bg-white/20 rounded-lg hover:bg-white/30 transition-colors">
+                  <svg
+                    className="w-6 h-6"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM9 9a2 2 0 11-4 0 2 2 0 014 0z"
+                    />
+                  </svg>
+                </button>
+              </div>
+            </header>
+
+            {/* Chat Window */}
+            <ChatWindow
+              messages={displayedMessages}
+              currentUser={username}
+              avatars={avatars}
+            />
+
+            {/* Typing Indicator */}
+            {typingUsers.length > 0 && (
+              <div className="px-4 py-2 bg-gray-50 border-t border-gray-100">
+                <div className="text-sm text-gray-500 italic flex items-center gap-2">
+                  <div className="flex gap-1">
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                    <div
+                      className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                      style={{ animationDelay: "0.1s" }}
+                    ></div>
+                    <div
+                      className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                      style={{ animationDelay: "0.2s" }}
+                    ></div>
+                  </div>
+                  {typingUsers
+                    .filter((user) => user !== username)
+                    .map((user) => `${user} is typing...`)
+                    .join(", ")}
+                </div>
+              </div>
+            )}
+
+            {/* Chat Input */}
+            <ChatInput
+              inputValue={input}
+              setInputValue={setInput}
+              onSend={activePrivateChat ? sendPrivateMessage : sendMessage}
+              onChange={handleInputChange}
+            />
           </div>
-        )}
+        </div>
+
+        {/* Right 3D Icon */}
+        <div className="hidden xl:flex items-center">
+          <ThreeDIcon
+            state={iconState}
+            side="sender"
+            size="large"
+            animTrigger={animationTrigger}
+          />
+        </div>
       </div>
 
-      {/* Right 3D Icon */}
-      <div className="hidden lg:flex items-center ml-8">
-        <ThreeDIcon state={iconState} side="sender" size="large" animTrigger={animationTrigger} />
-      </div>
+      <div ref={messagesEndRef} />
     </div>
   );
 };
