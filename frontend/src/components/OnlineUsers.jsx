@@ -5,6 +5,7 @@ import {
   GlobeAltIcon,
 } from "@heroicons/react/24/outline";
 import { UserIcon as UserIconSolid } from "@heroicons/react/24/solid";
+import { log } from "../config";
 
 const OnlineUsers = ({
   onlineUsers,
@@ -18,6 +19,36 @@ const OnlineUsers = ({
 }) => {
   const otherUsers = onlineUsers.filter((user) => user !== currentUsername);
 
+  // Log when component renders
+  React.useEffect(() => {
+    log.debug("OnlineUsers component rendered", {
+      totalUsers: onlineUsers.length,
+      otherUsers: otherUsers.length,
+      currentUsername,
+      activePrivateChat,
+    });
+  }, [onlineUsers, otherUsers, currentUsername, activePrivateChat]);
+
+  const handleUserClick = (user) => {
+    log.info("User clicked for private chat", { targetUser: user });
+    onUserClick(user);
+  };
+
+  const handlePublicChatClick = () => {
+    log.info("Switching to public chat");
+    onPublicChatClick();
+  };
+
+  const handleClearSession = () => {
+    log.warn("Clearing user session");
+    onClearSession();
+  };
+
+  const handleCompleteReset = () => {
+    log.warn("Requesting complete data reset");
+    onCompleteReset();
+  };
+
   return (
     <div className="bg-gradient-to-br from-indigo-50 to-purple-50 border-r border-indigo-200 shadow-lg">
       {/* Header */}
@@ -29,14 +60,14 @@ const OnlineUsers = ({
           </div>
           <div className="flex gap-1">
             <button
-              onClick={onClearSession}
+              onClick={handleClearSession}
               className="text-xs px-2 py-1 bg-white/20 text-white rounded-full hover:bg-white/30 transition-colors"
               title="Clear session and reload"
             >
               Reset
             </button>
             <button
-              onClick={onCompleteReset}
+              onClick={handleCompleteReset}
               className="text-xs px-2 py-1 bg-red-500/80 text-white rounded-full hover:bg-red-600/80 transition-colors"
               title="Reset ALL data (for everyone)"
             >
@@ -57,7 +88,7 @@ const OnlineUsers = ({
               ? "bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-lg transform scale-105"
               : "bg-white hover:bg-indigo-50 text-gray-700 border border-gray-200 hover:border-indigo-300"
           }`}
-          onClick={onPublicChatClick}
+          onClick={handlePublicChatClick}
         >
           <div
             className={`p-2 rounded-lg ${
@@ -105,7 +136,7 @@ const OnlineUsers = ({
                       ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg transform scale-105"
                       : "bg-white hover:bg-purple-50 border border-gray-200 hover:border-purple-300 hover:shadow-md"
                   }`}
-                  onClick={() => onUserClick(user)}
+                  onClick={() => handleUserClick(user)}
                 >
                   <div className="flex items-center gap-3">
                     {/* Avatar */}

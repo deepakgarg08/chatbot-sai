@@ -1,8 +1,14 @@
-import React from "react";
+import React, { useEffect } from "react";
 import Chat from "./components/Chat";
+import { log } from "./config";
 import "./App.css";
 
 function App() {
+  useEffect(() => {
+    log.info("App component mounted");
+    log.debug("Starting chat application");
+  }, []);
+
   return (
     <div className="h-screen overflow-hidden bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900">
       {/* Background Pattern */}

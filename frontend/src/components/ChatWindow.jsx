@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from "react";
 import ChatMessage from "./ChatMessage";
 import { ChatBubbleBottomCenterTextIcon } from "@heroicons/react/24/outline";
+import { log } from "../config";
 
 const ChatWindow = ({ messages, currentUser, avatars = {} }) => {
   const messagesEndRef = useRef(null);
@@ -8,6 +9,14 @@ const ChatWindow = ({ messages, currentUser, avatars = {} }) => {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // Log when messages change
+  useEffect(() => {
+    log.debug("ChatWindow messages updated", {
+      messageCount: messages.length,
+      currentUser,
+    });
+  }, [messages, currentUser]);
 
   return (
     <div className="flex-1 overflow-y-auto relative bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">

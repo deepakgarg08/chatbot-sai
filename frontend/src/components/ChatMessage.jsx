@@ -1,5 +1,6 @@
 import React from "react";
 import { CheckIcon, ClockIcon } from "@heroicons/react/24/outline";
+import { log } from "../config";
 
 export default function ChatMessage({ message, isOwnMessage, avatarUrl }) {
   const formatTime = (timestamp) => {
@@ -8,6 +9,16 @@ export default function ChatMessage({ message, isOwnMessage, avatarUrl }) {
       minute: "2-digit",
     });
   };
+
+  // Log message rendering
+  React.useEffect(() => {
+    log.debug("Rendering chat message", {
+      user: message.user,
+      isOwnMessage,
+      messageLength: message.text.length,
+      timestamp: message.timestamp,
+    });
+  }, [message, isOwnMessage]);
 
   return (
     <div

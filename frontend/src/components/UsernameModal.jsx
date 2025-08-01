@@ -1,15 +1,22 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { UserIcon, XMarkIcon } from '@heroicons/react/24/outline';
-import { CheckCircleIcon } from '@heroicons/react/24/solid';
+import React, { useState, useEffect, useRef } from "react";
+import { UserIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import { CheckCircleIcon } from "@heroicons/react/24/solid";
+import { log } from "../config";
 
-const UsernameModal = ({ isOpen, onSubmit, onClose, title = "Enter Your Name" }) => {
-  const [username, setUsername] = useState('');
-  const [error, setError] = useState('');
+const UsernameModal = ({
+  isOpen,
+  onSubmit,
+  onClose,
+  title = "Enter Your Name",
+}) => {
+  const [username, setUsername] = useState("");
+  const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const inputRef = useRef(null);
 
   useEffect(() => {
     if (isOpen && inputRef.current) {
+      log.debug("Username modal opened, focusing input");
       inputRef.current.focus();
     }
   }, [isOpen]);
@@ -18,44 +25,61 @@ const UsernameModal = ({ isOpen, onSubmit, onClose, title = "Enter Your Name" })
     e.preventDefault();
     const trimmedUsername = username.trim();
 
+    log.info("Username submission attempt", { username: trimmedUsername });
+
     if (!trimmedUsername) {
-      setError('Please enter a valid username');
+      log.warn("Username submission failed: empty username");
+      setError("Please enter a valid username");
       return;
     }
 
     if (trimmedUsername.length < 2) {
-      setError('Username must be at least 2 characters long');
+      log.warn("Username submission failed: too short", {
+        length: trimmedUsername.length,
+      });
+      setError("Username must be at least 2 characters long");
       return;
     }
 
     if (trimmedUsername.length > 20) {
-      setError('Username must be less than 20 characters');
+      log.warn("Username submission failed: too long", {
+        length: trimmedUsername.length,
+      });
+      setError("Username must be less than 20 characters");
       return;
     }
 
     if (!/^[a-zA-Z0-9_-]+$/.test(trimmedUsername)) {
-      setError('Username can only contain letters, numbers, underscores, and hyphens');
+      log.warn("Username submission failed: invalid characters", {
+        username: trimmedUsername,
+      });
+      setError(
+        "Username can only contain letters, numbers, underscores, and hyphens",
+      );
       return;
     }
 
     setIsLoading(true);
-    setError('');
+    setError("");
 
     try {
+      log.info("Submitting username", { username: trimmedUsername });
       await onSubmit(trimmedUsername);
+      log.info("Username submitted successfully");
     } catch (err) {
-      setError('Failed to set username. Please try again.');
+      log.error("Username submission failed", { error: err.message });
+      setError("Failed to set username. Please try again.");
       setIsLoading(false);
     }
   };
 
   const handleInputChange = (e) => {
     setUsername(e.target.value);
-    if (error) setError('');
+    if (error) setError("");
   };
 
   const handleKeyDown = (e) => {
-    if (e.key === 'Escape' && onClose) {
+    if (e.key === "Escape" && onClose) {
       onClose();
     }
   };
@@ -78,7 +102,10 @@ const UsernameModal = ({ isOpen, onSubmit, onClose, title = "Enter Your Name" })
               </div>
               {onClose && (
                 <button
-                  onClick={onClose}
+                  onClick={() => {
+                    log.info("Username modal closed by user");
+                    onClose();
+                  }}
                   className="p-1 hover:bg-white/20 rounded-lg transition-colors"
                 >
                   <XMarkIcon className="w-5 h-5" />
@@ -95,7 +122,10 @@ const UsernameModal = ({ isOpen, onSubmit, onClose, title = "Enter Your Name" })
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Username Input */}
               <div>
-                <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
+                <label
+                  htmlFor="username"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
                   Username
                 </label>
                 <div className="relative">
@@ -109,8 +139,8 @@ const UsernameModal = ({ isOpen, onSubmit, onClose, title = "Enter Your Name" })
                     placeholder="Enter your username..."
                     className={`w-full px-4 py-3 border rounded-xl text-gray-900 placeholder-gray-400 transition-all duration-200 focus:outline-none focus:ring-2 ${
                       error
-                        ? 'border-red-300 focus:border-red-500 focus:ring-red-200'
-                        : 'border-gray-300 focus:border-indigo-500 focus:ring-indigo-200'
+                        ? "border-red-300 focus:border-red-500 focus:ring-red-200"
+                        : "border-gray-300 focus:border-indigo-500 focus:ring-indigo-200"
                     }`}
                     maxLength={20}
                     disabled={isLoading}
@@ -124,10 +154,14 @@ const UsernameModal = ({ isOpen, onSubmit, onClose, title = "Enter Your Name" })
 
                 {/* Character count */}
                 <div className="flex justify-between items-center mt-2 text-xs">
-                  <span className={`${error ? 'text-red-500' : 'text-gray-500'}`}>
-                    {error || 'Letters, numbers, underscores, and hyphens only'}
+                  <span
+                    className={`${error ? "text-red-500" : "text-gray-500"}`}
+                  >
+                    {error || "Letters, numbers, underscores, and hyphens only"}
                   </span>
-                  <span className={`${username.length > 15 ? 'text-orange-500' : 'text-gray-400'}`}>
+                  <span
+                    className={`${username.length > 15 ? "text-orange-500" : "text-gray-400"}`}
+                  >
                     {username.length}/20
                   </span>
                 </div>
@@ -139,8 +173,8 @@ const UsernameModal = ({ isOpen, onSubmit, onClose, title = "Enter Your Name" })
                 disabled={!username.trim() || isLoading || !!error}
                 className={`w-full py-3 px-4 rounded-xl font-semibold text-white transition-all duration-200 ${
                   !username.trim() || isLoading || !!error
-                    ? 'bg-gray-300 cursor-not-allowed'
-                    : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-lg hover:shadow-xl transform hover:scale-[1.02]'
+                    ? "bg-gray-300 cursor-not-allowed"
+                    : "bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-lg hover:shadow-xl transform hover:scale-[1.02]"
                 }`}
               >
                 {isLoading ? (
@@ -149,7 +183,7 @@ const UsernameModal = ({ isOpen, onSubmit, onClose, title = "Enter Your Name" })
                     Connecting...
                   </div>
                 ) : (
-                  'Start Chatting'
+                  "Start Chatting"
                 )}
               </button>
             </form>

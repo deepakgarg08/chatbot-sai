@@ -23,6 +23,7 @@ import ChatWindow from "./ChatWindow";
 import ChatInput from "./ChatInput";
 import OnlineUsers from "./OnlineUsers";
 import UsernameModal from "./UsernameModal";
+import { log } from "../config";
 
 // Session persistence functions
 const SESSION_USERNAME_KEY = "chat_username";
@@ -30,19 +31,23 @@ const SESSION_USERNAME_KEY = "chat_username";
 const saveUsernameToStorage = (username) => {
   try {
     localStorage.setItem(SESSION_USERNAME_KEY, username);
-    console.log("💾 Username saved to localStorage:", username);
+    log.info("Username saved to localStorage", { username });
   } catch (error) {
-    console.warn("⚠️ Failed to save username to localStorage:", error);
+    log.error("Failed to save username to localStorage", {
+      error: error.message,
+    });
   }
 };
 
 const getUsernameFromStorage = () => {
   try {
     const username = localStorage.getItem(SESSION_USERNAME_KEY);
-    console.log("📖 Username loaded from localStorage:", username);
+    log.debug("Username loaded from localStorage", { username });
     return username;
   } catch (error) {
-    console.warn("⚠️ Failed to load username from localStorage:", error);
+    log.error("Failed to load username from localStorage", {
+      error: error.message,
+    });
     return null;
   }
 };
@@ -50,21 +55,23 @@ const getUsernameFromStorage = () => {
 const clearUsernameFromStorage = () => {
   try {
     localStorage.removeItem(SESSION_USERNAME_KEY);
-    console.log("🗑️ Username cleared from localStorage");
+    log.info("Username cleared from localStorage");
   } catch (error) {
-    console.warn("⚠️ Failed to clear username from localStorage:", error);
+    log.error("Failed to clear username from localStorage", {
+      error: error.message,
+    });
   }
 };
 
 const loadChatHistory = (socket, dispatch) => {
-  console.log("📚 Requesting chat history from server...");
+  log.info("Requesting chat history from server");
   const requestId = Date.now();
   const request = jsonrpc.request(requestId, "getChatHistory", {});
   socket.emit("rpc", request);
 };
 
 const resetAllData = (socket) => {
-  console.log("🗑️ Requesting complete data reset from server...");
+  log.warn("Requesting complete data reset from server");
   const requestId = Date.now();
   const request = jsonrpc.request(requestId, "resetAllData", {});
   socket.emit("rpc", request);
@@ -107,7 +114,10 @@ const Chat = () => {
 
   // Log privateChats whenever it changes
   useEffect(() => {
-    console.log("Current privateChats state:", privateChats);
+    log.debug("Private chats state updated", {
+      chatCount: Object.keys(privateChats).length,
+      chats: Object.keys(privateChats),
+    });
   }, [privateChats]);
 
   // Check for saved username or show modal
@@ -117,13 +127,15 @@ const Chat = () => {
 
     // First, try to get username from localStorage
     let name = getUsernameFromStorage();
-    console.log("🔍 Session check - Found saved username:", name);
+    log.info("Session check completed", { foundSavedUsername: !!name });
 
     if (name) {
-      console.log("🔄 Using saved username for session restoration");
+      log.info("Using saved username for session restoration", {
+        username: name,
+      });
       dispatch(setUsername(name));
     } else {
-      console.log("❓ No saved username found, showing modal...");
+      log.info("No saved username found, showing modal");
       setShowUsernameModal(true);
     }
   }, [dispatch]);
@@ -134,7 +146,7 @@ const Chat = () => {
 
     // Save username to localStorage for persistence
     saveUsernameToStorage(username);
-    console.log("🔗 Registering user with backend:", username);
+    log.info("Registering user with backend", { username });
 
     const requestId = Date.now();
     const registerRequest = jsonrpc.request(requestId, "registerUser", {
@@ -153,14 +165,17 @@ const Chat = () => {
       try {
         parsed = jsonrpc.parseObject(payload);
       } catch (err) {
-        console.warn("Failed to parse JSON-RPC payload:", err);
+        log.error("Failed to parse JSON-RPC payload", { error: err.message });
         return;
       }
 
       if (parsed.type === "notification") {
         const { method, params } = parsed.payload;
+        log.debug("Processing RPC notification", { method, params });
+
         switch (method) {
           case "chatMessage":
+            log.info("Received chat message", { from: params.user });
             dispatch(addMessage(params));
             if (params.user !== username) {
               dispatch(setIconState("received"));
@@ -170,24 +185,30 @@ const Chat = () => {
 
           case "typing":
             if (!params.target || params.target === username) {
+              log.debug("User started typing", { user: params.username });
               dispatch(userTyping(params.username));
             }
             break;
 
           case "stopTyping":
             if (!params.target || params.target === username) {
+              log.debug("User stopped typing", { user: params.username });
               dispatch(userStopTyping(params.username));
             }
             break;
 
           case "onlineUsers":
             if (params && Array.isArray(params.users)) {
+              log.info("Received online users update", {
+                userCount: params.users.length,
+              });
               dispatch(setOnlineUsers(params.users));
             }
             break;
           case "chatHistory":
 
           case "privateMessage":
+            log.info("Received private message", { from: params.from });
             dispatch(
               addPrivateMessage({
                 from: params.from,
@@ -199,7 +220,7 @@ const Chat = () => {
             break;
 
           case "dataReset":
-            console.log("🗑️ Server data was reset, clearing local state...");
+            log.warn("Server data was reset, clearing local state");
             // Clear all local state using Redux action
             dispatch(clearAllData());
             // Clear localStorage
@@ -209,16 +230,14 @@ const Chat = () => {
             break;
 
           default:
-            console.warn("Unknown notification method:", method);
+            log.warn("Unknown notification method", { method });
         }
       } else if (parsed.type === "success") {
         const { result } = parsed.payload;
 
         // Handle user registration success - load chat history
         if (result?.registered) {
-          console.log(
-            "✅ User registered successfully, loading chat history...",
-          );
+          log.info("User registered successfully, loading chat history");
           // Small delay to ensure registration is complete
           setTimeout(() => {
             loadChatHistory(socket, dispatch);
@@ -227,11 +246,12 @@ const Chat = () => {
 
         // Handle data reset success
         if (result?.reset) {
-          console.log("✅ All data reset successfully");
+          log.info("All data reset successfully");
         }
 
         // Handle delivery confirmation
         if (result?.delivered) {
+          log.debug("Message delivery confirmed");
           dispatch(triggerAnimation());
           setTimeout(() => dispatch(resetAnimation()), 1500);
         }

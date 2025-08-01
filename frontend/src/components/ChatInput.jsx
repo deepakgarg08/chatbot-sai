@@ -1,12 +1,14 @@
 import React from "react";
 import { PaperAirplaneIcon } from "@heroicons/react/24/solid";
 import { FaceSmileIcon } from "@heroicons/react/24/outline";
+import { log } from "../config";
 
 const ChatInput = ({ inputValue, setInputValue, onSend, onChange }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
     const trimmed = inputValue.trim();
     if (trimmed) {
+      log.info("Sending message", { messageLength: trimmed.length });
       onSend(trimmed);
       setInputValue("");
     }
@@ -23,6 +25,7 @@ const ChatInput = ({ inputValue, setInputValue, onSend, onChange }) => {
           type="button"
           className="flex-shrink-0 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-xl transition-colors"
           title="Add emoji"
+          onClick={() => log.debug("Emoji button clicked")}
         >
           <FaceSmileIcon className="w-6 h-6" />
         </button>
