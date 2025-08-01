@@ -43,3 +43,6 @@ dist-ssr
 
   printf "%s" "$path"
 }
+*backup*
+*backup
+*.bak

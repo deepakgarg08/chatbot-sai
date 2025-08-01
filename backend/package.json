@@ -5,7 +5,16 @@
   "main": "app.js",
   "scripts": {
     "start": "nodemon src/app.js",
-    "test": "NODE_ENV=test mocha \"test/**/*.test.js\" --exit"
+    "test": "NODE_ENV=test mocha \"test/**/*.test.js\" --exit",
+    "start:prod": "NODE_ENV=production LOG_LEVEL=warn node src/app.js",
+    "start:debug": "LOG_LEVEL=debug nodemon src/app.js",
+    "start:silent": "LOG_LEVEL=error ENABLE_CONSOLE_LOG=false nodemon src/app.js",
+    "start:errors-only": "LOG_LEVEL=error nodemon src/app.js",
+    "start:warnings": "LOG_LEVEL=warn nodemon src/app.js",
+    "start:info": "LOG_LEVEL=info nodemon src/app.js",
+    "start:no-files": "ENABLE_FILE_LOG=false nodemon src/app.js",
+    "logging:demo": "node src/config/logging-demo.js",
+    "logging:test": "node -e \"import logger from './src/config/logger.js'; import { QUICK_CONFIGS } from './src/config/logging.js'; console.log('Config:', logger.getConfig()); QUICK_CONFIGS.everything(logger); logger.error('Error test'); logger.warn('Warning test'); logger.info('Info test'); logger.debug('Debug test');\""
   },
   "type": "module",
   "author": "Deepak Garg",
@@ -20,6 +29,7 @@
     "chai": "^5.2.1",
     "mocha": "^11.7.1",
     "sinon": "^21.0.0",
-    "socket.io-client": "^4.8.1"
+    "socket.io-client": "^4.8.1",
+    "supertest": "^7.1.4"
   }
 }

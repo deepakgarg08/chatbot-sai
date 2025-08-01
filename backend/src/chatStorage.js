@@ -1,4 +1,4 @@
-import logger from "./logger.js";
+import logger from "./config/logger.js";
 
 class ChatStorage {
   constructor() {
@@ -119,34 +119,66 @@ class ChatStorage {
     );
 
     try {
-      // Check if user already exists
-      if (this.userSessions.has(username)) {
+      // Validate input
+      if (
+        !socketId ||
+        !username ||
+        socketId.trim() === "" ||
+        username.trim() === ""
+      ) {
         logger.warn(
-          `⚠️ addUser() - User '${username}' already exists, updating session`,
+          `⚠️ addUser() - Invalid input: socketId='${socketId}', username='${username}'`,
         );
-        this.updateUserSession(username, socketId);
-      } else {
-        this.users.set(socketId, username);
-        this.userSessions.set(username, {
-          socketId,
-          lastSeen: new Date(),
-          isOnline: true,
-        });
-        logger.info(
-          `✅ addUser() - New user '${username}' added successfully with socket ${socketId}`,
-        );
+        return {
+          success: false,
+          error: "Socket ID and username are required and cannot be empty",
+        };
       }
 
+      // Check if user already exists
+      if (this.userSessions.has(username)) {
+        logger.warn(`⚠️ addUser() - User '${username}' already exists`);
+        return {
+          success: false,
+          error: `User '${username}' already exists`,
+        };
+      }
+
+      // Add new user
+      this.users.set(socketId, username);
+      this.userSessions.set(username, {
+        socketId,
+        lastSeen: new Date(),
+        isOnline: true,
+      });
+
+      const user = {
+        username,
+        socketId,
+        isOnline: true,
+        lastSeen: new Date(),
+      };
+
+      logger.info(
+        `✅ addUser() - New user '${username}' added successfully with socket ${socketId}`,
+      );
       logger.debug(
         `📊 addUser() - Current stats: ${this.users.size} active connections, ${this.userSessions.size} total users`,
       );
       logger.debug("✅ addUser() - EXIT: User addition completed");
-      return true;
+
+      return {
+        success: true,
+        user,
+      };
     } catch (error) {
       logger.error(
         `❌ addUser() - ERROR: Failed to add user '${username}': ${error.message}`,
       );
-      return false;
+      return {
+        success: false,
+        error: error.message,
+      };
     }
   }
 
@@ -176,17 +208,31 @@ class ChatStorage {
         logger.debug(
           `✅ removeUser() - EXIT: User '${username}' removal completed`,
         );
-        return username;
+
+        return {
+          success: true,
+          removedUser: {
+            username,
+            socketId,
+            wasOnline: true,
+          },
+        };
       } else {
         logger.warn(`⚠️ removeUser() - No user found for socket ${socketId}`);
         logger.debug("✅ removeUser() - EXIT: No user to remove");
-        return null;
+        return {
+          success: false,
+          error: `User with socket ${socketId} not found`,
+        };
       }
     } catch (error) {
       logger.error(
         `❌ removeUser() - ERROR: Failed to remove user: ${error.message}`,
       );
-      return null;
+      return {
+        success: false,
+        error: error.message,
+      };
     }
   }
 
@@ -219,18 +265,32 @@ class ChatStorage {
         logger.debug(
           `🔍 getUserBySocketId() - Found user '${username}' for socket ${socketId}`,
         );
+        logger.debug("✅ getUserBySocketId() - EXIT: User lookup completed");
+        return {
+          success: true,
+          user: {
+            username,
+            socketId,
+          },
+        };
       } else {
         logger.debug(
           `🔍 getUserBySocketId() - No user found for socket ${socketId}`,
         );
+        logger.debug("✅ getUserBySocketId() - EXIT: User lookup completed");
+        return {
+          success: false,
+          error: `No user found for socket ${socketId}`,
+        };
       }
-      logger.debug("✅ getUserBySocketId() - EXIT: User lookup completed");
-      return username;
     } catch (error) {
       logger.error(
         `❌ getUserBySocketId() - ERROR: Failed to get user by socket ID: ${error.message}`,
       );
-      return null;
+      return {
+        success: false,
+        error: error.message,
+      };
     }
   }
 
@@ -240,15 +300,18 @@ class ChatStorage {
     );
 
     try {
-      for (const [socketId, user] of this.users.entries()) {
-        if (user === username) {
+      for (const [socketId, storedUsername] of this.users) {
+        if (storedUsername === username) {
           logger.debug(
             `🔍 getSocketIdByUsername() - Found socket ${socketId} for user '${username}'`,
           );
           logger.debug(
             "✅ getSocketIdByUsername() - EXIT: Socket lookup completed",
           );
-          return socketId;
+          return {
+            success: true,
+            socketId,
+          };
         }
       }
 
@@ -258,26 +321,43 @@ class ChatStorage {
       logger.debug(
         "✅ getSocketIdByUsername() - EXIT: Socket lookup completed (not found)",
       );
-      return null;
+      return {
+        success: false,
+        error: `No socket found for user '${username}'`,
+      };
     } catch (error) {
       logger.error(
         `❌ getSocketIdByUsername() - ERROR: Failed to get socket by username: ${error.message}`,
       );
-      return null;
+      return {
+        success: false,
+        error: error.message,
+      };
     }
   }
 
   // Public message management
   addPublicMessage(message) {
     logger.debug(
-      `💬 addPublicMessage() - ENTRY: Adding public message from '${message.user}'`,
+      `💬 addPublicMessage() - ENTRY: Adding public message from '${message.username || message.user}'`,
     );
 
     try {
+      // Validate input
+      if (!message || !message.text || !message.username) {
+        logger.warn(
+          `⚠️ addPublicMessage() - Invalid message data: missing required fields`,
+        );
+        return {
+          success: false,
+          error: "Message must have username and text fields",
+        };
+      }
+
       const messageWithId = {
         id: Date.now() + Math.random(),
         ...message,
-        timestamp: message.timestamp || Date.now(),
+        timestamp: message.timestamp || new Date().toISOString(),
         type: "public",
       };
 
@@ -293,7 +373,7 @@ class ChatStorage {
       }
 
       logger.info(
-        `💬 addPublicMessage() - Public message added from '${message.user}': "${message.text}"`,
+        `💬 addPublicMessage() - Public message added from '${message.username}': "${message.text}"`,
       );
       logger.debug(
         `📊 addPublicMessage() - Total public messages: ${this.publicMessages.length}`,
@@ -301,18 +381,25 @@ class ChatStorage {
       logger.debug(
         "✅ addPublicMessage() - EXIT: Public message addition completed",
       );
-      return messageWithId;
+
+      return {
+        success: true,
+        message: messageWithId,
+      };
     } catch (error) {
       logger.error(
         `❌ addPublicMessage() - ERROR: Failed to add public message: ${error.message}`,
       );
-      return null;
+      return {
+        success: false,
+        error: error.message,
+      };
     }
   }
 
   getPublicMessages(limit = 100) {
     logger.debug(
-      `📖 getPublicMessages() - ENTRY: Retrieving last ${limit} public messages`,
+      `📖 getPublicMessages() - ENTRY: Retrieving public messages (limit: ${limit})`,
     );
 
     try {
@@ -321,34 +408,52 @@ class ChatStorage {
         `📖 getPublicMessages() - Retrieved ${messages.length} public messages (limit: ${limit})`,
       );
       logger.debug(
-        "✅ getPublicMessages() - EXIT: Public messages retrieval completed",
+        "✅ getPublicMessages() - EXIT: Message retrieval completed",
       );
-      return messages;
+      return {
+        success: true,
+        messages,
+      };
     } catch (error) {
       logger.error(
         `❌ getPublicMessages() - ERROR: Failed to get public messages: ${error.message}`,
       );
-      return [];
+      return {
+        success: false,
+        error: error.message,
+        messages: [],
+      };
     }
   }
 
   getEncodedPublicMessages(limit = 100) {
     logger.debug(
-      `🔐 getEncodedPublicMessages() - ENTRY: Retrieving encoded public messages`,
+      `📦 getEncodedPublicMessages() - ENTRY: Getting encoded public messages (limit: ${limit})`,
     );
 
     try {
-      const messages = this.getPublicMessages(limit);
-      const encoded = this.encodeMessages(messages);
+      const messagesResult = this.getPublicMessages(limit);
+      if (!messagesResult.success) {
+        return messagesResult;
+      }
+
+      const encodedMessages = this.encodeMessages(messagesResult.messages);
       logger.debug(
-        "✅ getEncodedPublicMessages() - EXIT: Encoded public messages retrieval completed",
+        "✅ getEncodedPublicMessages() - EXIT: Encoded public messages retrieved",
       );
-      return encoded;
+      return {
+        success: true,
+        encodedMessages,
+      };
     } catch (error) {
       logger.error(
         `❌ getEncodedPublicMessages() - ERROR: Failed to get encoded public messages: ${error.message}`,
       );
-      return [];
+      return {
+        success: false,
+        error: error.message,
+        encodedMessages: [],
+      };
     }
   }
 
@@ -374,17 +479,45 @@ class ChatStorage {
     }
   }
 
-  addPrivateMessage(sender, recipient, message) {
+  addPrivateMessage(messageData) {
     logger.debug(
-      `🔒 addPrivateMessage() - ENTRY: Adding private message from '${sender}' to '${recipient}'`,
+      `🔒 addPrivateMessage() - ENTRY: Adding private message from '${messageData.from}' to '${messageData.to}'`,
     );
 
     try {
-      const chatKey = this.getPrivateChatKey(sender, recipient);
+      // Validate input
+      if (
+        !messageData ||
+        !messageData.from ||
+        !messageData.to ||
+        !messageData.text
+      ) {
+        logger.warn(
+          `⚠️ addPrivateMessage() - Invalid message data: missing required fields`,
+        );
+        return {
+          success: false,
+          error: "Message must have from, to, and text fields",
+        };
+      }
+
+      // Check if both users exist
+      if (!this.hasUser(messageData.from) || !this.hasUser(messageData.to)) {
+        logger.warn(`⚠️ addPrivateMessage() - One or both users do not exist`);
+        return {
+          success: false,
+          error: "Both sender and recipient must be registered users",
+        };
+      }
+
+      const chatKey = this.getPrivateChatKey(messageData.from, messageData.to);
 
       if (!chatKey) {
         logger.error(`❌ addPrivateMessage() - Failed to generate chat key`);
-        return null;
+        return {
+          success: false,
+          error: "Failed to generate chat key",
+        };
       }
 
       if (!this.privateChats[chatKey]) {
@@ -396,10 +529,10 @@ class ChatStorage {
 
       const messageWithId = {
         id: Date.now() + Math.random(),
-        from: sender,
-        to: recipient,
-        text: message.text,
-        timestamp: message.timestamp || Date.now(),
+        from: messageData.from,
+        to: messageData.to,
+        text: messageData.text,
+        timestamp: messageData.timestamp || new Date().toISOString(),
         type: "private",
       };
 
@@ -415,7 +548,7 @@ class ChatStorage {
       }
 
       logger.info(
-        `🔒 addPrivateMessage() - Private message added from '${sender}' to '${recipient}': "${message.text}"`,
+        `🔒 addPrivateMessage() - Private message added from '${messageData.from}' to '${messageData.to}': "${messageData.text}"`,
       );
       logger.debug(
         `📊 addPrivateMessage() - Chat '${chatKey}' now has ${this.privateChats[chatKey].length} messages`,
@@ -423,12 +556,19 @@ class ChatStorage {
       logger.debug(
         "✅ addPrivateMessage() - EXIT: Private message addition completed",
       );
-      return messageWithId;
+
+      return {
+        success: true,
+        message: messageWithId,
+      };
     } catch (error) {
       logger.error(
         `❌ addPrivateMessage() - ERROR: Failed to add private message: ${error.message}`,
       );
-      return null;
+      return {
+        success: false,
+        error: error.message,
+      };
     }
   }
 
@@ -448,32 +588,50 @@ class ChatStorage {
       logger.debug(
         "✅ getPrivateMessages() - EXIT: Private messages retrieval completed",
       );
-      return limitedMessages;
+      return {
+        success: true,
+        messages: limitedMessages,
+      };
     } catch (error) {
       logger.error(
         `❌ getPrivateMessages() - ERROR: Failed to get private messages: ${error.message}`,
       );
-      return [];
+      return {
+        success: false,
+        error: error.message,
+        messages: [],
+      };
     }
   }
 
   getEncodedPrivateMessages(user1, user2, limit = 100) {
     logger.debug(
-      `🔐 getEncodedPrivateMessages() - ENTRY: Retrieving encoded private messages`,
+      `📦 getEncodedPrivateMessages() - ENTRY: Getting encoded private messages between '${user1}' and '${user2}'`,
     );
 
     try {
-      const messages = this.getPrivateMessages(user1, user2, limit);
-      const encoded = this.encodeMessages(messages);
+      const messagesResult = this.getPrivateMessages(user1, user2, limit);
+      if (!messagesResult.success) {
+        return messagesResult;
+      }
+
+      const encodedMessages = this.encodeMessages(messagesResult.messages);
       logger.debug(
         "✅ getEncodedPrivateMessages() - EXIT: Encoded private messages retrieval completed",
       );
-      return encoded;
+      return {
+        success: true,
+        encodedMessages,
+      };
     } catch (error) {
       logger.error(
         `❌ getEncodedPrivateMessages() - ERROR: Failed to get encoded private messages: ${error.message}`,
       );
-      return [];
+      return {
+        success: false,
+        error: error.message,
+        encodedMessages: [],
+      };
     }
   }
 
@@ -626,27 +784,34 @@ class ChatStorage {
 
     try {
       const stats = {
-        publicMessages: this.publicMessages.length,
-        privateChats: Object.keys(this.privateChats).length,
+        totalPublicMessages: this.publicMessages.length,
+        totalPrivateChats: Object.keys(this.privateChats).length,
         totalPrivateMessages: Object.values(this.privateChats).reduce(
           (sum, messages) => sum + messages.length,
           0,
         ),
         onlineUsers: this.users.size,
         totalUsers: this.userSessions.size,
-        memoryUsage: process.memoryUsage(),
+        memoryUsage: process.memoryUsage().heapUsed,
       };
 
       logger.info(
-        `📊 getStorageStats() - Current stats: ${stats.publicMessages} public messages, ${stats.privateChats} private chats, ${stats.totalPrivateMessages} private messages, ${stats.onlineUsers} online users, ${stats.totalUsers} total users`,
+        `📊 getStorageStats() - Current stats: ${stats.totalPublicMessages} public messages, ${stats.totalPrivateChats} private chats, ${stats.totalPrivateMessages} private messages, ${stats.onlineUsers} online users, ${stats.totalUsers} total users`,
       );
       logger.debug("✅ getStorageStats() - EXIT: Storage statistics generated");
-      return stats;
+
+      return {
+        success: true,
+        stats,
+      };
     } catch (error) {
       logger.error(
         `❌ getStorageStats() - ERROR: Failed to get storage stats: ${error.message}`,
       );
-      return {};
+      return {
+        success: false,
+        error: error.message,
+      };
     }
   }
 
@@ -774,16 +939,23 @@ class ChatStorage {
       this.users.clear();
       this.userSessions.clear();
       this.publicMessages = [];
-      this.privateMessages.clear();
+      this.privateChats = {};
 
       logger.info("🗑️ resetAllData() - All chat data cleared successfully");
       logger.debug("✅ resetAllData() - EXIT: Data reset completed");
-      return true;
+
+      return {
+        success: true,
+        message: "All chat data cleared successfully",
+      };
     } catch (error) {
       logger.error(
         `❌ resetAllData() - ERROR: Failed to reset chat data: ${error.message}`,
       );
-      return false;
+      return {
+        success: false,
+        error: error.message,
+      };
     }
   }
 }

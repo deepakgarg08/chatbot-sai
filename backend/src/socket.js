@@ -1,5 +1,5 @@
 import jsonrpc from "jsonrpc-lite";
-import logger from "./logger.js";
+import logger from "./config/logger.js";
 import chatStorage from "./chatStorage.js";
 
 export default function setupSocket(io) {
@@ -227,11 +227,11 @@ export default function setupSocket(io) {
             }
 
             try {
-              const recipientSocketId = chatStorage.getSocketIdByUsername(
+              const recipientLookup = chatStorage.getSocketIdByUsername(
                 params.recipient,
               );
 
-              if (!recipientSocketId) {
+              if (!recipientLookup.success) {
                 logger.warn(
                   `⚠️ sendPrivateMessage() - Recipient '${params.recipient}' not found or offline`,
                 );
@@ -246,19 +246,17 @@ export default function setupSocket(io) {
                 return;
               }
 
+              const recipientSocketId = recipientLookup.socketId;
+
               // Store message in ChatStorage
-              const messageData = {
+              const storedMessage = chatStorage.addPrivateMessage({
+                from: params.sender,
+                to: params.recipient,
                 text: params.text,
                 timestamp: params.timestamp,
-              };
+              });
 
-              const storedMessage = chatStorage.addPrivateMessage(
-                params.sender,
-                params.recipient,
-                messageData,
-              );
-
-              if (storedMessage) {
+              if (storedMessage.success) {
                 logger.info(
                   `🔒 sendPrivateMessage() - Private message stored and delivering from ${params.sender} to ${params.recipient}: "${params.text}"`,
                 );
@@ -286,7 +284,9 @@ export default function setupSocket(io) {
                   `🔒 sendPrivateMessage() - EXIT: Private message delivered and stored successfully`,
                 );
               } else {
-                throw new Error("Failed to store private message");
+                throw new Error(
+                  storedMessage.error || "Failed to store private message",
+                );
               }
             } catch (error) {
               logger.error(

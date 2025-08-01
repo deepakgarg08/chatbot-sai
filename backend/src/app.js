@@ -4,7 +4,7 @@ import express from "express";
 import http from "http";
 import { Server } from "socket.io";
 import setupSocket from "./socket.js";
-import logger from "./logger.js";
+import logger from "./config/logger.js";
 
 logger.info("🚀 Starting application initialization");
 
