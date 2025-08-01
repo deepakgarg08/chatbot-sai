@@ -14,7 +14,7 @@ const server = http.createServer(app);
 logger.info("📡 Creating Socket.IO server with CORS configuration");
 const io = new Server(server, {
   cors: {
-    origin: "*",
+    origin: "*", // Allow all origins, but should be restricted in production.
     methods: ["GET", "POST"],
   },
 });

@@ -535,6 +535,39 @@ export default function setupSocket(io) {
             }
             break;
 
+          case "resetAllData":
+            logger.debug(
+              `🗑️ resetAllData() - ENTRY: Request to reset all data from socket ${socket.id}`,
+            );
+
+            try {
+              const resetSuccess = chatStorage.resetAllData();
+              if (resetSuccess) {
+                const successResponse = jsonrpc.success(id, { reset: true });
+                sendResponse(successResponse);
+
+                // Broadcast to all clients that data was reset
+                io.emit("rpc", jsonrpc.notification("dataReset", {}));
+
+                logger.info(
+                  `🗑️ resetAllData() - All data reset successfully by socket ${socket.id}`,
+                );
+                logger.debug(`🗑️ resetAllData() - EXIT: Data reset completed`);
+              } else {
+                throw new Error("Failed to reset data");
+              }
+            } catch (error) {
+              logger.error(
+                `❌ resetAllData() - ERROR: Failed to reset data: ${error.message}`,
+              );
+              const errorResponse = jsonrpc.error(
+                id,
+                new jsonrpc.JsonRpcError("Failed to reset data", -32603),
+              );
+              sendResponse(errorResponse);
+            }
+            break;
+
           default:
             logger.warn(
               `❓ UNKNOWN_METHOD - Unknown method '${method}' from socket ${socket.id}`,

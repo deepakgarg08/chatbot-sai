@@ -1,6 +1,10 @@
-import React from 'react';
-import { UserIcon, ChatBubbleLeftRightIcon, GlobeAltIcon } from '@heroicons/react/24/outline';
-import { UserIcon as UserIconSolid } from '@heroicons/react/24/solid';
+import React from "react";
+import {
+  UserIcon,
+  ChatBubbleLeftRightIcon,
+  GlobeAltIcon,
+} from "@heroicons/react/24/outline";
+import { UserIcon as UserIconSolid } from "@heroicons/react/24/solid";
 
 const OnlineUsers = ({
   onlineUsers,
@@ -9,9 +13,10 @@ const OnlineUsers = ({
   unreadCounts,
   onUserClick,
   onPublicChatClick,
-  onClearSession
+  onClearSession,
+  onCompleteReset,
 }) => {
-  const otherUsers = onlineUsers.filter(user => user !== currentUsername);
+  const otherUsers = onlineUsers.filter((user) => user !== currentUsername);
 
   return (
     <div className="bg-gradient-to-br from-indigo-50 to-purple-50 border-r border-indigo-200 shadow-lg">
@@ -22,16 +27,25 @@ const OnlineUsers = ({
             <UserIconSolid className="w-5 h-5" />
             <h3 className="font-bold text-lg">Online Users</h3>
           </div>
-          <button
-            onClick={onClearSession}
-            className="text-xs px-2 py-1 bg-white/20 text-white rounded-full hover:bg-white/30 transition-colors"
-            title="Clear session and reload"
-          >
-            Reset
-          </button>
+          <div className="flex gap-1">
+            <button
+              onClick={onClearSession}
+              className="text-xs px-2 py-1 bg-white/20 text-white rounded-full hover:bg-white/30 transition-colors"
+              title="Clear session and reload"
+            >
+              Reset
+            </button>
+            <button
+              onClick={onCompleteReset}
+              className="text-xs px-2 py-1 bg-red-500/80 text-white rounded-full hover:bg-red-600/80 transition-colors"
+              title="Reset ALL data (for everyone)"
+            >
+              Clear All
+            </button>
+          </div>
         </div>
         <div className="text-sm opacity-90">
-          {otherUsers.length} user{otherUsers.length !== 1 ? 's' : ''} online
+          {otherUsers.length} user{otherUsers.length !== 1 ? "s" : ""} online
         </div>
       </div>
 
@@ -45,18 +59,24 @@ const OnlineUsers = ({
           }`}
           onClick={onPublicChatClick}
         >
-          <div className={`p-2 rounded-lg ${
-            activePrivateChat === null ? "bg-white/20" : "bg-indigo-100"
-          }`}>
-            <GlobeAltIcon className={`w-5 h-5 ${
-              activePrivateChat === null ? "text-white" : "text-indigo-600"
-            }`} />
+          <div
+            className={`p-2 rounded-lg ${
+              activePrivateChat === null ? "bg-white/20" : "bg-indigo-100"
+            }`}
+          >
+            <GlobeAltIcon
+              className={`w-5 h-5 ${
+                activePrivateChat === null ? "text-white" : "text-indigo-600"
+              }`}
+            />
           </div>
           <div className="flex-1 text-left">
             <div className="font-semibold">Public Chat</div>
-            <div className={`text-sm ${
-              activePrivateChat === null ? "text-white/80" : "text-gray-500"
-            }`}>
+            <div
+              className={`text-sm ${
+                activePrivateChat === null ? "text-white/80" : "text-gray-500"
+              }`}
+            >
               Everyone can see
             </div>
           </div>
@@ -90,11 +110,13 @@ const OnlineUsers = ({
                   <div className="flex items-center gap-3">
                     {/* Avatar */}
                     <div className="relative">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg ${
-                        isActive
-                          ? "bg-white/20 text-white"
-                          : "bg-gradient-to-br from-purple-400 to-pink-400 text-white"
-                      }`}>
+                      <div
+                        className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg ${
+                          isActive
+                            ? "bg-white/20 text-white"
+                            : "bg-gradient-to-br from-purple-400 to-pink-400 text-white"
+                        }`}
+                      >
                         {user.charAt(0).toUpperCase()}
                       </div>
                       {/* Online indicator */}
@@ -105,14 +127,18 @@ const OnlineUsers = ({
 
                     {/* User info */}
                     <div className="flex-1 min-w-0">
-                      <div className={`font-semibold truncate ${
-                        isActive ? "text-white" : "text-gray-800"
-                      }`}>
+                      <div
+                        className={`font-semibold truncate ${
+                          isActive ? "text-white" : "text-gray-800"
+                        }`}
+                      >
                         {user}
                       </div>
-                      <div className={`text-sm flex items-center gap-1 ${
-                        isActive ? "text-white/80" : "text-gray-500"
-                      }`}>
+                      <div
+                        className={`text-sm flex items-center gap-1 ${
+                          isActive ? "text-white/80" : "text-gray-500"
+                        }`}
+                      >
                         <div className="w-2 h-2 bg-green-400 rounded-full"></div>
                         Online
                       </div>
@@ -124,19 +150,27 @@ const OnlineUsers = ({
                         <div className="relative">
                           <div className="w-6 h-6 bg-red-500 rounded-full flex items-center justify-center">
                             <span className="text-xs text-white font-bold">
-                              {unreadCounts[user] > 9 ? '9+' : unreadCounts[user]}
+                              {unreadCounts[user] > 9
+                                ? "9+"
+                                : unreadCounts[user]}
                             </span>
                           </div>
                           <div className="absolute inset-0 bg-red-500 rounded-full animate-ping opacity-75"></div>
                         </div>
                       )}
 
-                      <div className={`p-2 rounded-lg ${
-                        isActive ? "bg-white/20" : "bg-purple-100 group-hover:bg-purple-200"
-                      }`}>
-                        <ChatBubbleLeftRightIcon className={`w-4 h-4 ${
-                          isActive ? "text-white" : "text-purple-600"
-                        }`} />
+                      <div
+                        className={`p-2 rounded-lg ${
+                          isActive
+                            ? "bg-white/20"
+                            : "bg-purple-100 group-hover:bg-purple-200"
+                        }`}
+                      >
+                        <ChatBubbleLeftRightIcon
+                          className={`w-4 h-4 ${
+                            isActive ? "text-white" : "text-purple-600"
+                          }`}
+                        />
                       </div>
                     </div>
                   </div>
@@ -159,7 +193,9 @@ const OnlineUsers = ({
             {currentUsername.charAt(0).toUpperCase()}
           </div>
           <div className="flex-1">
-            <div className="font-semibold text-gray-800 text-sm">{currentUsername}</div>
+            <div className="font-semibold text-gray-800 text-sm">
+              {currentUsername}
+            </div>
             <div className="text-xs text-gray-500 flex items-center gap-1">
               <div className="w-2 h-2 bg-green-400 rounded-full"></div>
               That's you!

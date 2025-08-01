@@ -1,12 +1,11 @@
-import { createSlice } from '@reduxjs/toolkit';
-
+import { createSlice } from "@reduxjs/toolkit";
 
 const initialState = {
   messages: [], // public chat messages
-  username: '',
+  username: "",
   typingUsers: [],
   animationTrigger: false, // new state to trigger 3D icon animation
-  iconState: 'static', // 'static' | 'sent' | 'received'
+  iconState: "static", // 'static' | 'sent' | 'received'
   onlineUsers: [],
   privateChats: {}, // { [username]: [ { from, text, timestamp } ] }
   activePrivateChat: null, // username of current private chat open
@@ -14,7 +13,7 @@ const initialState = {
 };
 
 export const chatSlice = createSlice({
-  name: 'chat',
+  name: "chat",
   initialState,
   reducers: {
     setUsername: (state, action) => {
@@ -33,7 +32,7 @@ export const chatSlice = createSlice({
     },
     userStopTyping(state, action) {
       state.typingUsers = state.typingUsers.filter(
-        (user) => user !== action.payload
+        (user) => user !== action.payload,
       );
     },
     clearTyping(state) {
@@ -65,9 +64,9 @@ export const chatSlice = createSlice({
       // Determine the chat thread key as the OTHER user in the conversation
       let threadKey;
       if (from === currentUser && to) {
-        threadKey = to;    // you sent, so key is recipient
+        threadKey = to; // you sent, so key is recipient
       } else {
-        threadKey = from;  // you received, so key is sender
+        threadKey = from; // you received, so key is sender
       }
 
       if (!threadKey) {
@@ -87,12 +86,24 @@ export const chatSlice = createSlice({
 
       // Update unread count if chat is not active
       if (state.activePrivateChat !== threadKey) {
-        state.unreadCounts[threadKey] = (state.unreadCounts[threadKey] || 0) + 1;
+        state.unreadCounts[threadKey] =
+          (state.unreadCounts[threadKey] || 0) + 1;
       }
     },
     resetUnreadCount(state, action) {
       const user = action.payload;
       state.unreadCounts[user] = 0;
+    },
+    clearAllData(state) {
+      state.messages = [];
+      state.username = "";
+      state.typingUsers = [];
+      state.animationTrigger = false;
+      state.iconState = "static";
+      state.onlineUsers = [];
+      state.privateChats = {};
+      state.activePrivateChat = null;
+      state.unreadCounts = {};
     },
   },
 });
@@ -111,6 +122,7 @@ export const {
   setActivePrivateChat,
   addPrivateMessage,
   resetUnreadCount,
+  clearAllData,
 } = chatSlice.actions;
 
 export default chatSlice.reducer;

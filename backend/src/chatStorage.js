@@ -765,6 +765,27 @@ class ChatStorage {
       return false;
     }
   }
+
+  resetAllData() {
+    logger.debug("🗑️ resetAllData() - ENTRY: Clearing all chat data");
+
+    try {
+      // Clear all data structures
+      this.users.clear();
+      this.userSessions.clear();
+      this.publicMessages = [];
+      this.privateMessages.clear();
+
+      logger.info("🗑️ resetAllData() - All chat data cleared successfully");
+      logger.debug("✅ resetAllData() - EXIT: Data reset completed");
+      return true;
+    } catch (error) {
+      logger.error(
+        `❌ resetAllData() - ERROR: Failed to reset chat data: ${error.message}`,
+      );
+      return false;
+    }
+  }
 }
 
 // Create singleton instance

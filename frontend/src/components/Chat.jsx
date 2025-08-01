@@ -14,6 +14,7 @@ import {
   setActivePrivateChat,
   resetUnreadCount,
   setMessages,
+  clearAllData,
 } from "../store/chatSlice";
 import socket from "../services/socket";
 import jsonrpc from "jsonrpc-lite";
@@ -21,6 +22,7 @@ import ThreeDIcon from "./ThreeDIcon";
 import ChatWindow from "./ChatWindow";
 import ChatInput from "./ChatInput";
 import OnlineUsers from "./OnlineUsers";
+import UsernameModal from "./UsernameModal";
 
 // Session persistence functions
 const SESSION_USERNAME_KEY = "chat_username";
@@ -61,6 +63,13 @@ const loadChatHistory = (socket, dispatch) => {
   socket.emit("rpc", request);
 };
 
+const resetAllData = (socket) => {
+  console.log("🗑️ Requesting complete data reset from server...");
+  const requestId = Date.now();
+  const request = jsonrpc.request(requestId, "resetAllData", {});
+  socket.emit("rpc", request);
+};
+
 const Chat = () => {
   const dispatch = useDispatch();
 
@@ -81,6 +90,8 @@ const Chat = () => {
   // Local state
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [showUsernameModal, setShowUsernameModal] = useState(false);
+  const [pendingUsername, setPendingUsername] = useState("");
 
   // Refs
   const usernamePrompted = useRef(false);
@@ -99,7 +110,7 @@ const Chat = () => {
     console.log("Current privateChats state:", privateChats);
   }, [privateChats]);
 
-  // Check for saved username or prompt for new one
+  // Check for saved username or show modal
   useEffect(() => {
     if (usernamePrompted.current) return;
     usernamePrompted.current = true;
@@ -108,24 +119,13 @@ const Chat = () => {
     let name = getUsernameFromStorage();
     console.log("🔍 Session check - Found saved username:", name);
 
-    // If no saved username, prompt for one
-    if (!name) {
-      console.log("❓ No saved username found, prompting user...");
-      while (!name) {
-        name = prompt("Enter your username (or type 'clear' to reset)")?.trim();
-        if (name === "clear") {
-          clearUsernameFromStorage();
-          name = null;
-          continue;
-        }
-        if (!name) alert("Please enter a valid username.");
-      }
-      console.log("✅ New username entered:", name);
-    } else {
+    if (name) {
       console.log("🔄 Using saved username for session restoration");
+      dispatch(setUsername(name));
+    } else {
+      console.log("❓ No saved username found, showing modal...");
+      setShowUsernameModal(true);
     }
-
-    dispatch(setUsername(name));
   }, [dispatch]);
 
   // Register user with backend once username is set
@@ -198,6 +198,16 @@ const Chat = () => {
             );
             break;
 
+          case "dataReset":
+            console.log("🗑️ Server data was reset, clearing local state...");
+            // Clear all local state using Redux action
+            dispatch(clearAllData());
+            // Clear localStorage
+            clearUsernameFromStorage();
+            // Show username modal again
+            setShowUsernameModal(true);
+            break;
+
           default:
             console.warn("Unknown notification method:", method);
         }
@@ -213,6 +223,11 @@ const Chat = () => {
           setTimeout(() => {
             loadChatHistory(socket, dispatch);
           }, 100);
+        }
+
+        // Handle data reset success
+        if (result?.reset) {
+          console.log("✅ All data reset successfully");
         }
 
         // Handle delivery confirmation
@@ -365,130 +380,199 @@ const Chat = () => {
     window.location.reload();
   };
 
+  // Handle complete reset (clear server data + session)
+  const handleCompleteReset = () => {
+    if (
+      confirm(
+        "Are you sure you want to reset ALL chat data? This will clear all messages and user sessions for everyone.",
+      )
+    ) {
+      resetAllData(socket);
+    }
+  };
+
+  // Handle username modal submission
+  const handleUsernameSubmit = async (newUsername) => {
+    setPendingUsername(newUsername);
+    dispatch(setUsername(newUsername));
+    setShowUsernameModal(false);
+    return Promise.resolve();
+  };
+
+  // Handle username modal close (if closeable)
+  const handleUsernameModalClose = () => {
+    // Only allow closing if we already have a username
+    if (username) {
+      setShowUsernameModal(false);
+    }
+  };
+
   // Messages to display depend on chat mode: public or private
   const displayedMessages = activePrivateChat
     ? privateChats[activePrivateChat] || []
     : messages;
 
-  if (!username) {
-    return <div>Loading...</div>;
+  if (!username && !showUsernameModal) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 p-4">
-      <div className="max-w-7xl mx-auto h-screen flex gap-6 py-6">
-        {/* Left 3D Icon */}
-        <div className="hidden xl:flex items-center">
-          <ThreeDIcon
-            state={iconState}
-            side="receiver"
-            size="large"
-            animTrigger={animationTrigger}
-          />
-        </div>
+    <>
+      {/* Username Modal */}
+      <UsernameModal
+        isOpen={showUsernameModal}
+        onSubmit={handleUsernameSubmit}
+        onClose={username ? handleUsernameModalClose : undefined}
+        title={username ? "Change Username" : "Welcome to Chat"}
+      />
 
-        {/* Online Users Sidebar */}
-        <div className="w-80 hidden md:block">
-          <OnlineUsers
-            onlineUsers={onlineUsers}
-            currentUsername={username}
-            activePrivateChat={activePrivateChat}
-            unreadCounts={unreadCounts}
-            onUserClick={handleUserClick}
-            onPublicChatClick={handlePublicChatClick}
-            onClearSession={handleClearSession}
-          />
-        </div>
-
-        {/* Main Chat Container */}
-        <div className="flex-1 max-w-4xl mx-auto">
-          <div className="h-full bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden flex flex-col">
-            {/* Header */}
-            <header className="px-6 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h1 className="text-xl font-bold">
-                    {activePrivateChat ? `${activePrivateChat}` : "Public Chat"}
-                  </h1>
-                  <p className="text-indigo-100 text-sm">
-                    {activePrivateChat
-                      ? `Private conversation with ${activePrivateChat}`
-                      : `Chatting as ${username} • ${onlineUsers.length} users online`}
-                  </p>
-                </div>
-
-                {/* Mobile Users Button */}
-                <button className="md:hidden p-2 bg-white/20 rounded-lg hover:bg-white/30 transition-colors">
-                  <svg
-                    className="w-6 h-6"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM9 9a2 2 0 11-4 0 2 2 0 014 0z"
-                    />
-                  </svg>
-                </button>
-              </div>
-            </header>
-
-            {/* Chat Window */}
-            <ChatWindow
-              messages={displayedMessages}
-              currentUser={username}
-              avatars={avatars}
+      <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 p-4">
+        <div className="max-w-7xl mx-auto h-screen flex gap-6 py-6">
+          {/* Left 3D Icon */}
+          <div className="hidden xl:flex items-center">
+            <ThreeDIcon
+              state={iconState}
+              side="receiver"
+              size="large"
+              animTrigger={animationTrigger}
             />
+          </div>
 
-            {/* Typing Indicator */}
-            {typingUsers.length > 0 && (
-              <div className="px-4 py-2 bg-gray-50 border-t border-gray-100">
-                <div className="text-sm text-gray-500 italic flex items-center gap-2">
-                  <div className="flex gap-1">
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                    <div
-                      className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-                      style={{ animationDelay: "0.1s" }}
-                    ></div>
-                    <div
-                      className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-                      style={{ animationDelay: "0.2s" }}
-                    ></div>
+          {/* Online Users Sidebar */}
+          <div className="w-80 hidden md:block">
+            <OnlineUsers
+              onlineUsers={onlineUsers}
+              currentUsername={username}
+              activePrivateChat={activePrivateChat}
+              unreadCounts={unreadCounts}
+              onUserClick={handleUserClick}
+              onPublicChatClick={handlePublicChatClick}
+              onClearSession={handleClearSession}
+              onCompleteReset={handleCompleteReset}
+            />
+          </div>
+
+          {/* Main Chat Container */}
+          <div className="flex-1 max-w-4xl mx-auto">
+            <div className="h-full bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden flex flex-col">
+              {/* Header */}
+              <header className="px-6 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h1 className="text-xl font-bold">
+                      {activePrivateChat
+                        ? `${activePrivateChat}`
+                        : "Public Chat"}
+                    </h1>
+                    <p className="text-indigo-100 text-sm">
+                      {activePrivateChat
+                        ? `Private conversation with ${activePrivateChat}`
+                        : `Chatting as ${username} • ${onlineUsers.length} users online`}
+                    </p>
                   </div>
-                  {typingUsers
-                    .filter((user) => user !== username)
-                    .map((user) => `${user} is typing...`)
-                    .join(", ")}
-                </div>
-              </div>
-            )}
 
-            {/* Chat Input */}
-            <ChatInput
-              inputValue={input}
-              setInputValue={setInput}
-              onSend={activePrivateChat ? sendPrivateMessage : sendMessage}
-              onChange={handleInputChange}
+                  {/* Mobile Users Button & Settings */}
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setShowUsernameModal(true)}
+                      className="p-2 bg-white/20 rounded-lg hover:bg-white/30 transition-colors"
+                      title="Change username"
+                    >
+                      <svg
+                        className="w-5 h-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                        />
+                      </svg>
+                    </button>
+
+                    <button className="md:hidden p-2 bg-white/20 rounded-lg hover:bg-white/30 transition-colors">
+                      <svg
+                        className="w-6 h-6"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM9 9a2 2 0 11-4 0 2 2 0 014 0z"
+                        />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </header>
+
+              {/* Chat Window */}
+              <ChatWindow
+                messages={displayedMessages}
+                currentUser={username}
+                avatars={avatars}
+              />
+
+              {/* Typing Indicator */}
+              {typingUsers.length > 0 && (
+                <div className="px-4 py-2 bg-gray-50 border-t border-gray-100">
+                  <div className="text-sm text-gray-500 italic flex items-center gap-2">
+                    <div className="flex gap-1">
+                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                      <div
+                        className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                        style={{ animationDelay: "0.1s" }}
+                      ></div>
+                      <div
+                        className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                        style={{ animationDelay: "0.2s" }}
+                      ></div>
+                    </div>
+                    {typingUsers
+                      .filter((user) => user !== username)
+                      .map((user) => `${user} is typing...`)
+                      .join(", ")}
+                  </div>
+                </div>
+              )}
+
+              {/* Chat Input */}
+              <ChatInput
+                inputValue={input}
+                setInputValue={setInput}
+                onSend={activePrivateChat ? sendPrivateMessage : sendMessage}
+                onChange={handleInputChange}
+              />
+            </div>
+          </div>
+
+          {/* Right 3D Icon */}
+          <div className="hidden xl:flex items-center">
+            <ThreeDIcon
+              state={iconState}
+              side="sender"
+              size="large"
+              animTrigger={animationTrigger}
             />
           </div>
         </div>
 
-        {/* Right 3D Icon */}
-        <div className="hidden xl:flex items-center">
-          <ThreeDIcon
-            state={iconState}
-            side="sender"
-            size="large"
-            animTrigger={animationTrigger}
-          />
-        </div>
+        <div ref={messagesEndRef} />
       </div>
-
-      <div ref={messagesEndRef} />
-    </div>
+    </>
   );
 };
 
