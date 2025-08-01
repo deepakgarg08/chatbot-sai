@@ -46,3 +46,4 @@ dist-ssr
 *backup*
 *backup
 *.bak
+*.fuse*
