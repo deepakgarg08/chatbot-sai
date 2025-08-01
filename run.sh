@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # Optional: source the port checking script if available
-if [ -f "./check_server.sh" ]; then
-  source ./check_server.sh
+if [ -f "./docker/check_server.sh" ]; then
+  source ./docker/check_server.sh
 else
   echo "Warning: check_server.sh not found. Skipping port kill step."
 fi

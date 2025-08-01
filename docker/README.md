@@ -69,6 +69,7 @@ You can customize the application behavior using environment variables:
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `NODE_ENV` | `production` | Node.js environment |
+ (to edit `LOG_LEVEL` for `frontend` from .env.local and for `backend`, package.json, scripts written)
 | `LOG_LEVEL` | `info` | Logging level (error, warn, info, debug) |
 | `PORT` | `5000` | Backend server port |
 | `FRONTEND_PORT` | `3000` | Frontend server port |
