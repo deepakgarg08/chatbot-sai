@@ -4,8 +4,10 @@ import { Server } from "socket.io";
 import setupSocket from "./socket.js";
 import logger from "./config/logger.js";
 import path from "path";
-import { fileURLToPath } from "url"; 
+import { fileURLToPath } from "url";
 import setupApp from "./helpers/appSetup.js";
+import dotenv from 'dotenv';
+dotenv.config();
 
 logger.info("🚀 Starting application initialization");
 
@@ -22,17 +24,23 @@ const io = new Server(server, {
 
 logger.info("✅ Socket.IO server created successfully");
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
-// Serve static files from backend/dist directory
-app.use(express.static(path.join(__dirname, "..", "dist")));
+console.log("Environment::::", process.env.NODE_ENV);
+if (process.env.NODE_ENV === 'production') {
 
-// React SPA Fallback for client-side routes
-app.get(/^(?!.*\.(js|css|png|jpg|svg|webp|ico)$).*/, (req, res, next) => {
-  if (req.method !== "GET") return next();
-  res.sendFile(path.join(__dirname, "..", "dist", "index.html"));
-});
+  logger.info("🌍 Running in production mode");
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = path.dirname(__filename);
+
+  // Serve static files from backend/dist directory
+  app.use(express.static(path.join(__dirname, "..", "dist")));
+
+  // React SPA Fallback for client-side routes
+  app.get(/^(?!.*\.(js|css|png|jpg|svg|webp|ico)$).*/, (req, res, next) => {
+    if (req.method !== "GET") return next();
+    res.sendFile(path.join(__dirname, "..", "dist", "index.html"));
+  });
+} 
 
 
 // HTTP Routes

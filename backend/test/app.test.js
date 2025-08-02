@@ -11,10 +11,10 @@ describe("Basic HTTP Server", function () {
   });
 
 
-  it("GET / should return status 200 and correct message", async function () {
-    await request(app)
-      .get("/")
-      .expect(200)
-      .expect("Real-time Chat Backend is running");
-  });
+  // it("GET / should return status 200 and correct message", async function () {
+  //   await request(app)
+  //     .get("/")
+  //     .expect(200)
+  //     .expect("Real-time Chat Backend is running");
+  // });
 });

@@ -20,6 +20,7 @@
   "author": "Deepak Garg",
   "license": "ISC",
   "dependencies": {
+    "dotenv": "^17.2.1",
     "express": "^5.1.0",
     "jsonrpc-lite": "^2.2.0",
     "socket.io": "^4.8.1",
