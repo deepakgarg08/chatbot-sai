@@ -63,7 +63,7 @@ const clearUsernameFromStorage = () => {
   }
 };
 
-const loadChatHistory = (socket, dispatch) => {
+const loadChatHistory = (socket) => {
   log.info("Requesting chat history from server");
   const requestId = Date.now();
   const request = jsonrpc.request(requestId, "getChatHistory", {});
@@ -98,7 +98,9 @@ const Chat = () => {
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [showUsernameModal, setShowUsernameModal] = useState(false);
-  const [pendingUsername, setPendingUsername] = useState("");
+  const [showMobileUsers, setShowMobileUsers] = useState(false);
+  const [hasNotificationPermission, setHasNotificationPermission] =
+    useState(false);
 
   // Refs
   const usernamePrompted = useRef(false);
@@ -148,6 +150,9 @@ const Chat = () => {
     saveUsernameToStorage(username);
     log.info("Registering user with backend", { username });
 
+    // Request notification permission
+    requestNotificationPermission();
+
     const requestId = Date.now();
     const registerRequest = jsonrpc.request(requestId, "registerUser", {
       username,
@@ -159,6 +164,26 @@ const Chat = () => {
   useEffect(() => {
     if (!username) return;
     socket.off("rpc");
+
+    // Define notification function inside useEffect to avoid dependency issues
+    const showNotification = (sender, message, isPrivate) => {
+      if (!hasNotificationPermission || document.hasFocus()) return;
+
+      const title = isPrivate
+        ? `Private message from ${sender}`
+        : `${sender} in Public Chat`;
+      const body =
+        message.length > 50 ? message.substring(0, 50) + "..." : message;
+
+      const notification = new Notification(title, {
+        body,
+        icon: "/favicon.ico",
+        tag: isPrivate ? `private-${sender}` : "public-chat",
+      });
+
+      // Auto-close notification after 5 seconds
+      setTimeout(() => notification.close(), 5000);
+    };
 
     const handleRpc = (payload) => {
       let parsed;
@@ -180,6 +205,10 @@ const Chat = () => {
             if (params.user !== username) {
               dispatch(setIconState("received"));
               setTimeout(() => dispatch(setIconState("static")), 800);
+              // Show notification for public chat messages
+              if (!activePrivateChat) {
+                showNotification(params.user, params.text, false);
+              }
             }
             break;
 
@@ -206,6 +235,8 @@ const Chat = () => {
             }
             break;
           case "chatHistory":
+            // Handle chat history if needed
+            break;
 
           case "privateMessage":
             log.info("Received private message", { from: params.from });
@@ -217,6 +248,8 @@ const Chat = () => {
                 timestamp: params.timestamp,
               }),
             );
+            // Show notification for private messages
+            showNotification(params.from, params.text, true);
             break;
 
           case "dataReset":
@@ -238,9 +271,8 @@ const Chat = () => {
         // Handle user registration success - load chat history
         if (result?.registered) {
           log.info("User registered successfully, loading chat history");
-          // Small delay to ensure registration is complete
           setTimeout(() => {
-            loadChatHistory(socket, dispatch);
+            loadChatHistory(socket);
           }, 100);
         }
 
@@ -270,20 +302,18 @@ const Chat = () => {
 
           // Load private chats
           if (result.privateChats && typeof result.privateChats === "object") {
-            Object.entries(result.privateChats).forEach(
-              ([otherUser, messages]) => {
-                messages.forEach((message) => {
-                  dispatch(
-                    addPrivateMessage({
-                      from: message.from,
-                      to: message.to,
-                      text: message.text,
-                      timestamp: message.timestamp,
-                    }),
-                  );
-                });
-              },
-            );
+            Object.entries(result.privateChats).forEach(([, messages]) => {
+              messages.forEach((message) => {
+                dispatch(
+                  addPrivateMessage({
+                    from: message.from,
+                    to: message.to,
+                    text: message.text,
+                    timestamp: message.timestamp,
+                  }),
+                );
+              });
+            });
             console.log(
               `🔒 Loaded private chats with ${Object.keys(result.privateChats).length} users`,
             );
@@ -296,7 +326,7 @@ const Chat = () => {
 
     socket.on("rpc", handleRpc);
     return () => socket.off("rpc", handleRpc);
-  }, [username, dispatch]);
+  }, [username, dispatch, activePrivateChat, hasNotificationPermission]);
 
   // Auto-scroll on new messages or chat switches
   useEffect(() => {
@@ -412,11 +442,24 @@ const Chat = () => {
   };
 
   // Handle username modal submission
+  // Handle username submit for modal
   const handleUsernameSubmit = async (newUsername) => {
-    setPendingUsername(newUsername);
     dispatch(setUsername(newUsername));
     setShowUsernameModal(false);
     return Promise.resolve();
+  };
+
+  // Request notification permission
+  const requestNotificationPermission = async () => {
+    if ("Notification" in window) {
+      const permission = await Notification.requestPermission();
+      setHasNotificationPermission(permission === "granted");
+    }
+  };
+
+  // Toggle mobile users panel
+  const toggleMobileUsers = () => {
+    setShowMobileUsers(!showMobileUsers);
   };
 
   // Handle username modal close (if closeable)
@@ -453,8 +496,27 @@ const Chat = () => {
         title={username ? "Change Username" : "Welcome to Chat"}
       />
 
-      <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 p-4">
-        <div className="max-w-7xl mx-auto h-screen flex gap-6 py-6">
+      <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 p-2 md:p-4">
+        {/* Notification Permission Banner */}
+        {!hasNotificationPermission && (
+          <div className="max-w-7xl mx-auto mb-4 bg-orange-100 border border-orange-300 rounded-lg p-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-orange-600">🔔</span>
+                <span className="text-sm text-orange-800">
+                  Enable notifications to get alerts for new messages
+                </span>
+              </div>
+              <button
+                onClick={requestNotificationPermission}
+                className="text-xs bg-orange-600 text-white px-3 py-1 rounded hover:bg-orange-700 transition-colors"
+              >
+                Enable
+              </button>
+            </div>
+          </div>
+        )}
+        <div className="max-w-7xl mx-auto h-screen flex gap-6 py-2 md:py-6">
           {/* Left 3D Icon */}
           <div className="hidden xl:flex items-center">
             <ThreeDIcon
@@ -465,8 +527,8 @@ const Chat = () => {
             />
           </div>
 
-          {/* Online Users Sidebar */}
-          <div className="w-80 hidden md:block">
+          {/* Online Users Sidebar - Hidden on mobile and tablet */}
+          <div className="w-80 hidden xl:block">
             <OnlineUsers
               onlineUsers={onlineUsers}
               currentUsername={username}
@@ -481,7 +543,7 @@ const Chat = () => {
 
           {/* Main Chat Container */}
           <div className="flex-1 max-w-4xl mx-auto">
-            <div className="h-full bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden flex flex-col">
+            <div className="h-full bg-white rounded-xl md:rounded-2xl shadow-2xl border border-gray-200 overflow-hidden flex flex-col">
               {/* Header */}
               <header className="px-6 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white">
                 <div className="flex items-center justify-between">
@@ -498,7 +560,7 @@ const Chat = () => {
                     </p>
                   </div>
 
-                  {/* Mobile Users Button & Settings */}
+                  {/* Settings & Mobile Users Button */}
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => setShowUsernameModal(true)}
@@ -520,7 +582,30 @@ const Chat = () => {
                       </svg>
                     </button>
 
-                    <button className="md:hidden p-2 bg-white/20 rounded-lg hover:bg-white/30 transition-colors">
+                    {/* Notification Status Indicator */}
+                    <div className="flex items-center gap-1">
+                      <div
+                        className={`w-2 h-2 rounded-full ${
+                          hasNotificationPermission
+                            ? "bg-green-400"
+                            : "bg-red-400"
+                        }`}
+                        title={
+                          hasNotificationPermission
+                            ? "Notifications enabled"
+                            : "Notifications disabled"
+                        }
+                      ></div>
+                      <span className="text-xs text-white/80 hidden sm:inline">
+                        {hasNotificationPermission ? "🔔" : "🔕"}
+                      </span>
+                    </div>
+
+                    <button
+                      className="xl:hidden p-2 bg-white/20 rounded-lg hover:bg-white/30 transition-colors relative"
+                      onClick={toggleMobileUsers}
+                      title="Show online users"
+                    >
                       <svg
                         className="w-6 h-6"
                         fill="none"
@@ -534,6 +619,15 @@ const Chat = () => {
                           d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM9 9a2 2 0 11-4 0 2 2 0 014 0z"
                         />
                       </svg>
+                      {Object.values(unreadCounts).some(
+                        (count) => count > 0,
+                      ) && (
+                        <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
+                          <span className="text-xs text-white font-bold">
+                            !
+                          </span>
+                        </div>
+                      )}
                     </button>
                   </div>
                 </div>
@@ -591,6 +685,59 @@ const Chat = () => {
         </div>
 
         <div ref={messagesEndRef} />
+
+        {/* Mobile Users Modal */}
+        {showMobileUsers && (
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 z-50 xl:hidden animate-fade-in"
+            onClick={toggleMobileUsers}
+          >
+            <div
+              className="absolute inset-y-0 right-0 w-80 max-w-[80vw] bg-white shadow-lg transform transition-transform duration-300 ease-in-out animate-slide-in-right"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex justify-between items-center p-4 border-b bg-gradient-to-r from-indigo-600 to-purple-600 text-white">
+                <h3 className="text-lg font-semibold">Online Users</h3>
+                <button
+                  onClick={toggleMobileUsers}
+                  className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+                >
+                  <svg
+                    className="w-6 h-6"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              </div>
+              <div className="h-full overflow-hidden pb-16">
+                <OnlineUsers
+                  onlineUsers={onlineUsers}
+                  currentUsername={username}
+                  activePrivateChat={activePrivateChat}
+                  unreadCounts={unreadCounts}
+                  onUserClick={(user) => {
+                    handleUserClick(user);
+                    setShowMobileUsers(false);
+                  }}
+                  onPublicChatClick={() => {
+                    handlePublicChatClick();
+                    setShowMobileUsers(false);
+                  }}
+                  onClearSession={handleClearSession}
+                  onCompleteReset={handleCompleteReset}
+                />
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </>
   );

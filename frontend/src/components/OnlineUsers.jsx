@@ -50,7 +50,7 @@ const OnlineUsers = ({
   };
 
   return (
-    <div className="bg-gradient-to-br from-indigo-50 to-purple-50 border-r border-indigo-200 shadow-lg">
+    <div className="bg-gradient-to-br from-indigo-50 to-purple-50 border-r border-indigo-200 shadow-lg h-full flex flex-col">
       {/* Header */}
       <div className="p-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white">
         <div className="flex justify-between items-center mb-2">
@@ -115,7 +115,7 @@ const OnlineUsers = ({
       </div>
 
       {/* Users List */}
-      <div className="flex-1 overflow-y-auto max-h-96">
+      <div className="flex-1 overflow-y-auto">
         {otherUsers.length === 0 ? (
           <div className="p-6 text-center text-gray-500">
             <UserIcon className="w-12 h-12 mx-auto mb-3 opacity-50" />
@@ -218,7 +218,7 @@ const OnlineUsers = ({
       </div>
 
       {/* Footer with current user info */}
-      <div className="p-3 border-t border-indigo-100 bg-gradient-to-r from-indigo-50 to-purple-50">
+      <div className="p-3 border-t border-indigo-100 bg-gradient-to-r from-indigo-50 to-purple-50 flex-shrink-0">
         <div className="flex items-center gap-3 p-2 bg-white rounded-lg shadow-sm">
           <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold">
             {currentUsername.charAt(0).toUpperCase()}
