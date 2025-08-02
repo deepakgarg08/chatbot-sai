@@ -6,7 +6,7 @@
   "scripts": {
     "start": "nodemon src/app.js",
     "test": "NODE_ENV=test mocha \"test/**/*.test.js\" --exit",
-    "start:prod": "NODE_ENV=production LOG_LEVEL=warn node src/app.js",
+    "start:prod": "NODE_ENV=production LOG_LEVEL=warn nodemon src/app.js",
     "start:debug": "LOG_LEVEL=debug nodemon src/app.js",
     "start:silent": "LOG_LEVEL=error ENABLE_CONSOLE_LOG=false nodemon src/app.js",
     "start:errors-only": "LOG_LEVEL=error nodemon src/app.js",

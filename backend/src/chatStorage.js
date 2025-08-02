@@ -344,7 +344,7 @@ class ChatStorage {
 
     try {
       // Validate input
-      if (!message || !message.text || !message.username) {
+      if (!message || !message.text || !message.user) {
         logger.warn(
           `⚠️ addPublicMessage() - Invalid message data: missing required fields`,
         );

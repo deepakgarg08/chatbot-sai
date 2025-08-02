@@ -27,6 +27,7 @@ logger.info("✅ Socket.IO server created successfully");
 
 console.log("Environment::::", process.env.NODE_ENV);
 if (process.env.NODE_ENV === 'production') {
+  console.log("Running in production mode");
 
   logger.info("🌍 Running in production mode");
   const __filename = fileURLToPath(import.meta.url);
@@ -40,7 +41,7 @@ if (process.env.NODE_ENV === 'production') {
     if (req.method !== "GET") return next();
     res.sendFile(path.join(__dirname, "..", "dist", "index.html"));
   });
-} 
+}
 
 
 // HTTP Routes

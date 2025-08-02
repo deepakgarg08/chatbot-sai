@@ -9,9 +9,9 @@ export const IS_PROD = ENV === "production";
 
 // API Configuration
 export const API_URL = import.meta.env.VITE_API_URL || "";
+// console.log("API_URL inside app.js", API_URL);
 
-export const SOCKET_URL =
-  import.meta.env.VITE_SOCKET_URL || "";
+export const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || "";
 
 // App Settings
 export const APP_CONFIG = {
