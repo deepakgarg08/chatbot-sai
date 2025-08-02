@@ -4,7 +4,7 @@ import store from "../store/store"; // Import your Redux store
 import jsonrpc from "jsonrpc-lite"; // For decoding JSON-RPC messages
 import { log } from "../config";
 
-const backendUrl = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
+const backendUrl = import.meta.env.VITE_BACKEND_URL || "";
 log.info("Connecting to socket server", { url: backendUrl });
 const socket = io(backendUrl);
 
