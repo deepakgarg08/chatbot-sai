@@ -153,12 +153,103 @@ const Chat = () => {
     // Request notification permission
     requestNotificationPermission();
 
-    const requestId = Date.now();
-    const registerRequest = jsonrpc.request(requestId, "registerUser", {
-      username,
-    });
-    socket.emit("rpc", registerRequest);
+    // Add a small delay to ensure socket is ready after reset
+    const registerUser = () => {
+      const requestId = Date.now();
+      const registerRequest = jsonrpc.request(requestId, "registerUser", {
+        username,
+      });
+
+      log.info("Sending registration request", {
+        requestId,
+        username,
+        socketConnected: socket.connected,
+        socketId: socket.id,
+      });
+
+      socket.emit("rpc", registerRequest);
+
+      // Set timeout for registration
+      const registrationTimeout = setTimeout(() => {
+        log.error("Registration timeout - no response from server", {
+          username,
+          requestId,
+        });
+        // Reset state to show modal again
+        dispatch(setUsername(""));
+        setShowUsernameModal(true);
+      }, 10000); // 10 second timeout
+
+      // Store timeout in a ref so we can clear it if registration succeeds
+      const timeoutKey = `registration_${requestId}`;
+      window[timeoutKey] = registrationTimeout;
+    };
+
+    // If socket is connected, register immediately, otherwise wait for connection
+    if (socket.connected) {
+      log.debug("Socket is connected, registering immediately");
+      registerUser();
+    } else {
+      log.warn(
+        "Socket not connected, waiting for connection before registration",
+        { socketConnected: socket.connected },
+      );
+      socket.once("connect", () => {
+        log.info("Socket connected, now registering user");
+        registerUser();
+      });
+    }
+
+    // Cleanup listener if component unmounts or username changes
+    return () => {
+      socket.off("connect", registerUser);
+    };
   }, [username]);
+
+  // Monitor socket connection status for debugging
+  useEffect(() => {
+    const handleConnect = () => {
+      log.info("Socket connected successfully", {
+        socketId: socket.id,
+        hasUsername: !!username,
+      });
+    };
+
+    const handleDisconnect = (reason) => {
+      log.warn("Socket disconnected", {
+        reason,
+        hasUsername: !!username,
+      });
+      if (reason === "io server disconnect") {
+        // Server initiated disconnection, try to reconnect
+        log.info("Attempting to reconnect after server disconnect");
+        socket.connect();
+      }
+    };
+
+    const handleConnectError = (error) => {
+      log.error("Socket connection error", {
+        error: error.message,
+        hasUsername: !!username,
+      });
+    };
+
+    socket.on("connect", handleConnect);
+    socket.on("disconnect", handleDisconnect);
+    socket.on("connect_error", handleConnectError);
+
+    // Log initial connection state
+    log.debug("Socket connection monitoring setup", {
+      connected: socket.connected,
+      socketId: socket.id,
+    });
+
+    return () => {
+      socket.off("connect", handleConnect);
+      socket.off("disconnect", handleDisconnect);
+      socket.off("connect_error", handleConnectError);
+    };
+  }, [username, dispatch]);
 
   // Listen for JSON-RPC notifications and responses
   useEffect(() => {
@@ -258,8 +349,18 @@ const Chat = () => {
             dispatch(clearAllData());
             // Clear localStorage
             clearUsernameFromStorage();
+            // Reset username in Redux to trigger re-registration flow
+            dispatch(setUsername(""));
             // Show username modal again
             setShowUsernameModal(true);
+            log.info(
+              "Reset complete, username modal shown for re-registration",
+              {
+                currentUsername: username,
+                modalWillShow: true,
+                socketConnected: socket.connected,
+              },
+            );
             break;
 
           default:
@@ -271,6 +372,17 @@ const Chat = () => {
         // Handle user registration success - load chat history
         if (result?.registered) {
           log.info("User registered successfully, loading chat history");
+          // Clear any pending registration timeout
+          const timeoutKey = `registration_${parsed.payload.id}`;
+          if (window[timeoutKey]) {
+            clearTimeout(window[timeoutKey]);
+            delete window[timeoutKey];
+            log.debug("Cleared registration timeout", {
+              requestId: parsed.payload.id,
+            });
+          }
+          // Ensure modal is closed in case it was still open
+          setShowUsernameModal(false);
           setTimeout(() => {
             loadChatHistory(socket);
           }, 100);
@@ -320,7 +432,21 @@ const Chat = () => {
           }
         }
       } else if (parsed.type === "error") {
-        console.error("RPC error:", parsed.payload.error);
+        const { error } = parsed.payload;
+        log.error("RPC error received", { error });
+
+        // Handle registration errors specifically
+        if (error.message && error.message.includes("Registration failed")) {
+          log.error("User registration failed, showing modal again");
+          dispatch(setUsername(""));
+          setShowUsernameModal(true);
+        } else if (error.message && error.message.includes("username")) {
+          log.error("Username-related error, showing modal again", { error });
+          dispatch(setUsername(""));
+          setShowUsernameModal(true);
+        } else {
+          log.error("Unhandled RPC error", { error });
+        }
       }
     };
 
@@ -444,9 +570,25 @@ const Chat = () => {
   // Handle username modal submission
   // Handle username submit for modal
   const handleUsernameSubmit = async (newUsername) => {
-    dispatch(setUsername(newUsername));
-    setShowUsernameModal(false);
-    return Promise.resolve();
+    log.info("Username submitted via modal", { username: newUsername });
+
+    try {
+      // Set username first
+      dispatch(setUsername(newUsername));
+
+      // Close modal immediately
+      setShowUsernameModal(false);
+
+      log.debug(
+        "Username set and modal closed, registration will be handled by useEffect",
+      );
+
+      // Return success - the useEffect for username registration will handle the backend registration
+      return Promise.resolve();
+    } catch (error) {
+      log.error("Error submitting username", { error: error.message });
+      throw error;
+    }
   };
 
   // Request notification permission
@@ -486,8 +628,47 @@ const Chat = () => {
     );
   }
 
+  // Handle manual reconnection
+  const handleManualReconnect = () => {
+    log.info("Manual reconnection triggered");
+    socket.disconnect();
+    setTimeout(() => {
+      socket.connect();
+    }, 1000);
+  };
+
   return (
     <>
+      {/* Debug Info Panel - Only show in development */}
+      {import.meta.env.DEV && (
+        <div className="fixed top-4 right-4 z-40 bg-black/80 text-white p-3 rounded-lg text-xs max-w-sm">
+          <div className="font-bold mb-2">Debug Info:</div>
+          <div>Username: {username || "none"}</div>
+          <div>Show Modal: {showUsernameModal ? "yes" : "no"}</div>
+          <div>Socket Connected: {socket?.connected ? "yes" : "no"}</div>
+          <div>Socket ID: {socket?.id || "none"}</div>
+          <div>Online Users: {onlineUsers.length}</div>
+          <div>Messages: {messages.length}</div>
+          <div className="mt-2 space-y-1">
+            <button
+              onClick={handleManualReconnect}
+              className="block w-full text-left px-2 py-1 bg-blue-600 hover:bg-blue-700 rounded text-xs"
+            >
+              🔄 Reconnect
+            </button>
+            <button
+              onClick={() => {
+                dispatch(setUsername(""));
+                setShowUsernameModal(true);
+              }}
+              className="block w-full text-left px-2 py-1 bg-green-600 hover:bg-green-700 rounded text-xs"
+            >
+              👤 Reset User
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Username Modal */}
       <UsernameModal
         isOpen={showUsernameModal}
@@ -497,6 +678,33 @@ const Chat = () => {
       />
 
       <div className="min-h-screen bg-transparent p-4 md:p-6">
+        {/* Connection Status Indicator */}
+        {!socket?.connected && (
+          <div className="max-w-7xl mx-auto mb-4 bg-gradient-to-r from-red-500/20 to-orange-500/20 backdrop-blur-sm border border-red-300/30 rounded-2xl p-4 shadow-lg">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-red-500/20 rounded-xl flex items-center justify-center">
+                  <span className="text-red-600">⚠️</span>
+                </div>
+                <div>
+                  <div className="text-red-800 font-semibold">
+                    Connection Lost
+                  </div>
+                  <div className="text-red-600 text-sm">
+                    Trying to reconnect...
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={handleManualReconnect}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl transition-colors text-sm font-medium"
+              >
+                Reconnect Now
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Notification Permission Banner */}
         {!hasNotificationPermission && (
           <div className="max-w-7xl mx-auto mb-4 bg-gradient-to-r from-amber-500/20 to-orange-500/20 backdrop-blur-sm border border-amber-300/30 rounded-2xl p-4 shadow-lg">

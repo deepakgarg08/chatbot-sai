@@ -66,6 +66,7 @@ const UsernameModal = ({
       log.info("Submitting username", { username: trimmedUsername });
       await onSubmit(trimmedUsername);
       log.info("Username submitted successfully");
+      setIsLoading(false);
     } catch (err) {
       log.error("Username submission failed", { error: err.message });
       setError("Failed to set username. Please try again.");
