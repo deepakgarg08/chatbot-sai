@@ -6,7 +6,11 @@ import tailwindcss from "@tailwindcss/vite";
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
-    port: 3000, // Set your desired dev server port here
-    host: "0.0.0.0", // Bind to all interfaces for Docker compatibility
+    port: 3000,
+    host: "0.0.0.0",
+  },
+  build: {
+    outDir: "../backend/dist", // <-- This is the correct place!
+    emptyOutDir: true,         // Optional: clear the output folder before build
   },
 });
