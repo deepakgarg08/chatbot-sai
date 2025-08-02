@@ -158,7 +158,7 @@ describe("ChatStorage - Persistent Chat Storage Tests", function () {
 
     it("should add public message successfully", function () {
       const messageData = {
-        username: "user1",
+        user: "user1",
         text: "Hello everyone!",
         timestamp: new Date().toISOString(),
       };
@@ -166,18 +166,18 @@ describe("ChatStorage - Persistent Chat Storage Tests", function () {
       const result = chatStorage.addPublicMessage(messageData);
       expect(result.success).to.be.true;
       expect(result.message.text).to.equal("Hello everyone!");
-      expect(result.message.username).to.equal("user1");
+      expect(result.message.user).to.equal("user1");
       expect(chatStorage.publicMessages).to.have.length(1);
     });
 
     it("should get public messages", function () {
       const message1 = {
-        username: "user1",
+        user: "user1",
         text: "Message 1",
         timestamp: new Date().toISOString(),
       };
       const message2 = {
-        username: "user2",
+        user: "user2",
         text: "Message 2",
         timestamp: new Date().toISOString(),
       };
@@ -265,7 +265,7 @@ describe("ChatStorage - Persistent Chat Storage Tests", function () {
       chatStorage.addUser("socket1", "user1");
       chatStorage.addUser("socket2", "user2");
       chatStorage.addPublicMessage({
-        username: "user1",
+        user: "user1",
         text: "Public message",
         timestamp: new Date().toISOString(),
       });
@@ -357,7 +357,7 @@ describe("ChatStorage - Persistent Chat Storage Tests", function () {
       // Add 100 public messages
       for (let i = 0; i < 100; i++) {
         chatStorage.addPublicMessage({
-          username: "user1",
+          user: "user1",
           text: `Message ${i}`,
           timestamp: new Date().toISOString(),
         });

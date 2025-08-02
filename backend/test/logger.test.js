@@ -68,7 +68,11 @@ describe("Logger - Winston Logger Functionality Tests", function () {
     });
 
     it("should create logs directory", function () {
-      const logsDir = path.join(__dirname, "../logs");
+      // Logger should create logs directory when file logging is enabled
+      // First, ensure we log something to trigger directory creation
+      logger.info("Test message to trigger directory creation");
+
+      const logsDir = path.join(__dirname, "../src/logs");
       expect(fs.existsSync(logsDir)).to.be.true;
     });
   });
@@ -107,9 +111,14 @@ describe("Logger - Winston Logger Functionality Tests", function () {
         logger.info(testMessage);
       }).to.not.throw();
 
-      // Just verify the logs directory exists after logging
-      const logsDir = path.join(__dirname, "../logs");
-      expect(fs.existsSync(logsDir)).to.be.true;
+      // Wait a bit for file system operations to complete
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          const logsDir = path.join(__dirname, "../src/logs");
+          expect(fs.existsSync(logsDir)).to.be.true;
+          resolve();
+        }, 100);
+      });
     });
 
     it("should create error.log file when logging errors", function () {
@@ -119,9 +128,14 @@ describe("Logger - Winston Logger Functionality Tests", function () {
         logger.error(testErrorMessage);
       }).to.not.throw();
 
-      // Just verify the logs directory exists after logging
-      const logsDir = path.join(__dirname, "../logs");
-      expect(fs.existsSync(logsDir)).to.be.true;
+      // Wait a bit for file system operations to complete
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          const logsDir = path.join(__dirname, "../src/logs");
+          expect(fs.existsSync(logsDir)).to.be.true;
+          resolve();
+        }, 100);
+      });
     });
   });
 
