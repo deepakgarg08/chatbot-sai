@@ -496,27 +496,34 @@ const Chat = () => {
         title={username ? "Change Username" : "Welcome to Chat"}
       />
 
-      <div className="min-h-screen bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 p-2 md:p-4">
+      <div className="min-h-screen bg-transparent p-4 md:p-6">
         {/* Notification Permission Banner */}
         {!hasNotificationPermission && (
-          <div className="max-w-7xl mx-auto mb-4 bg-orange-100 border border-orange-300 rounded-lg p-3">
+          <div className="max-w-7xl mx-auto mb-4 bg-gradient-to-r from-amber-500/20 to-orange-500/20 backdrop-blur-sm border border-amber-300/30 rounded-2xl p-4 shadow-lg">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="text-orange-600">🔔</span>
-                <span className="text-sm text-orange-800">
-                  Enable notifications to get alerts for new messages
-                </span>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-gradient-to-r from-amber-400 to-orange-500 rounded-xl flex items-center justify-center shadow-lg">
+                  <span className="text-white text-lg">🔔</span>
+                </div>
+                <div>
+                  <div className="text-sm font-medium text-white">
+                    Enable Smart Notifications
+                  </div>
+                  <div className="text-xs text-amber-100">
+                    Get instant alerts for new messages and responses
+                  </div>
+                </div>
               </div>
               <button
                 onClick={requestNotificationPermission}
-                className="text-xs bg-orange-600 text-white px-3 py-1 rounded hover:bg-orange-700 transition-colors"
+                className="text-sm bg-gradient-to-r from-amber-500 to-orange-500 text-white px-4 py-2 rounded-xl hover:from-amber-600 hover:to-orange-600 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 font-medium"
               >
                 Enable
               </button>
             </div>
           </div>
         )}
-        <div className="max-w-7xl mx-auto h-screen flex gap-6 py-2 md:py-6">
+        <div className="max-w-7xl mx-auto h-screen flex gap-6 py-4 md:py-6 px-2 md:px-4">
           {/* Left 3D Icon */}
           <div className="hidden xl:flex items-center">
             <ThreeDIcon
@@ -542,33 +549,108 @@ const Chat = () => {
           </div>
 
           {/* Main Chat Container */}
-          <div className="flex-1 max-w-4xl mx-auto">
-            <div className="h-full bg-white rounded-xl md:rounded-2xl shadow-2xl border border-gray-200 overflow-hidden flex flex-col">
+          <div className="flex-1 max-w-4xl mx-auto px-2 md:px-4">
+            <div className="h-full bg-white/95 backdrop-blur-xl rounded-2xl md:rounded-3xl shadow-2xl border border-white/20 overflow-hidden flex flex-col">
               {/* Header */}
-              <header className="px-6 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h1 className="text-xl font-bold">
-                      {activePrivateChat
-                        ? `${activePrivateChat}`
-                        : "Public Chat"}
-                    </h1>
-                    <p className="text-indigo-100 text-sm">
-                      {activePrivateChat
-                        ? `Private conversation with ${activePrivateChat}`
-                        : `Chatting as ${username} • ${onlineUsers.length} users online`}
-                    </p>
+              <header className="px-6 py-4 bg-gradient-to-r from-slate-800 via-blue-900 to-indigo-800 text-white relative overflow-hidden">
+                {/* Header Background Pattern */}
+                <div className="absolute inset-0 opacity-10">
+                  <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-blue-400/20 via-purple-400/20 to-cyan-400/20"></div>
+                  <svg
+                    width="100%"
+                    height="100%"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <defs>
+                      <pattern
+                        id="header-pattern"
+                        x="0"
+                        y="0"
+                        width="20"
+                        height="20"
+                        patternUnits="userSpaceOnUse"
+                      >
+                        <circle
+                          cx="10"
+                          cy="10"
+                          r="1"
+                          fill="rgba(255,255,255,0.3)"
+                        />
+                      </pattern>
+                    </defs>
+                    <rect
+                      width="100%"
+                      height="100%"
+                      fill="url(#header-pattern)"
+                    />
+                  </svg>
+                </div>
+                <div className="relative z-10 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-purple-500 rounded-xl flex items-center justify-center shadow-lg">
+                      {activePrivateChat ? (
+                        <svg
+                          className="w-6 h-6 text-white"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+                          />
+                        </svg>
+                      ) : (
+                        <svg
+                          className="w-6 h-6 text-white"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a2 2 0 01-2-2v-6a2 2 0 012-2h8z"
+                          />
+                        </svg>
+                      )}
+                    </div>
+                    <div>
+                      <h1 className="text-xl font-bold bg-gradient-to-r from-blue-100 to-cyan-100 bg-clip-text text-transparent">
+                        {activePrivateChat
+                          ? `Chat with ${activePrivateChat}`
+                          : "Public Group Chat"}
+                      </h1>
+                      <div className="text-blue-200 text-sm flex items-center gap-2">
+                        {activePrivateChat ? (
+                          <>
+                            <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                            <span>Private conversation</span>
+                          </>
+                        ) : (
+                          <>
+                            <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                            <span>
+                              {username} • {onlineUsers.length} users connected
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    </div>
                   </div>
 
                   {/* Settings & Mobile Users Button */}
-                  <div className="flex items-center gap-2">
+                  <div className="relative z-10 flex items-center gap-3">
                     <button
                       onClick={() => setShowUsernameModal(true)}
-                      className="p-2 bg-white/20 rounded-lg hover:bg-white/30 transition-colors"
+                      className="p-3 bg-white/20 backdrop-blur-sm rounded-xl hover:bg-white/30 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
                       title="Change username"
                     >
                       <svg
-                        className="w-5 h-5"
+                        className="w-5 h-5 text-white"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -583,11 +665,11 @@ const Chat = () => {
                     </button>
 
                     {/* Notification Status Indicator */}
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-2 px-3 py-2 bg-white/10 backdrop-blur-sm rounded-xl">
                       <div
-                        className={`w-2 h-2 rounded-full ${
+                        className={`w-3 h-3 rounded-full shadow-lg ${
                           hasNotificationPermission
-                            ? "bg-green-400"
+                            ? "bg-green-400 animate-pulse"
                             : "bg-red-400"
                         }`}
                         title={
@@ -596,13 +678,13 @@ const Chat = () => {
                             : "Notifications disabled"
                         }
                       ></div>
-                      <span className="text-xs text-white/80 hidden sm:inline">
-                        {hasNotificationPermission ? "🔔" : "🔕"}
+                      <span className="text-xs text-white/90 hidden sm:inline font-medium">
+                        {hasNotificationPermission ? "🔔 ON" : "🔕 OFF"}
                       </span>
                     </div>
 
                     <button
-                      className="xl:hidden p-2 bg-white/20 rounded-lg hover:bg-white/30 transition-colors relative"
+                      className="xl:hidden p-3 bg-white/20 backdrop-blur-sm rounded-xl hover:bg-white/30 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 relative"
                       onClick={toggleMobileUsers}
                       title="Show online users"
                     >
