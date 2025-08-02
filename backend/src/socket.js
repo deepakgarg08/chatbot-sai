@@ -605,7 +605,8 @@ export default function setupSocket(io) {
       );
 
       try {
-        const username = chatStorage.removeUser(socket.id);
+        const result = chatStorage.removeUser(socket.id);
+        const username = result.success ? result.removedUser.username : null;
 
         logger.info(
           `👋 DISCONNECT - User '${username || "Unknown"}' disconnected from socket ${socket.id}`,

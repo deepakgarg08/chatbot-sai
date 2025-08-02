@@ -5,3 +5,4 @@ import "./socket/03-multi-broadcast.test.js";
 import "./socket/04-private-chat.test.js";
 import "./chatStorage.test.js";
 import "./logger.test.js";
+import "./multiple-instances.test.js";

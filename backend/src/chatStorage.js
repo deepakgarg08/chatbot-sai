@@ -195,11 +195,23 @@ class ChatStorage {
         const session = this.userSessions.get(username);
 
         if (session) {
-          session.isOnline = false;
-          session.lastSeen = new Date();
-          logger.info(
-            `👋 removeUser() - User '${username}' marked as offline, socket ${socketId} removed`,
+          // Check if this user has any other active connections
+          const hasOtherConnections = Array.from(this.users.values()).includes(
+            username,
           );
+
+          if (!hasOtherConnections) {
+            // Only mark as offline if no other connections exist
+            session.isOnline = false;
+            session.lastSeen = new Date();
+            logger.info(
+              `👋 removeUser() - User '${username}' marked as offline (no more connections), socket ${socketId} removed`,
+            );
+          } else {
+            logger.info(
+              `👋 removeUser() - Socket ${socketId} removed for '${username}', but user still has other active connections`,
+            );
+          }
         }
 
         logger.debug(
