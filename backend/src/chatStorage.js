@@ -240,12 +240,13 @@ class ChatStorage {
     logger.debug("👥 getOnlineUsers() - ENTRY: Retrieving online users list");
 
     try {
-      const onlineUsers = Array.from(this.users.values());
+      // Get unique usernames only (remove duplicates from multiple browser instances)
+      const uniqueUsernames = [...new Set(this.users.values())];
       logger.debug(
-        `👥 getOnlineUsers() - Found ${onlineUsers.length} online users: [${onlineUsers.join(", ")}]`,
+        `👥 getOnlineUsers() - Found ${uniqueUsernames.length} unique online users: [${uniqueUsernames.join(", ")}]`,
       );
       logger.debug("✅ getOnlineUsers() - EXIT: Online users list retrieved");
-      return onlineUsers;
+      return uniqueUsernames;
     } catch (error) {
       logger.error(
         `❌ getOnlineUsers() - ERROR: Failed to get online users: ${error.message}`,
@@ -344,14 +345,19 @@ class ChatStorage {
 
     try {
       // Validate input
-      if (!message || !message.text || !message.user) {
+      if (!message || !message.text || (!message.user && !message.username)) {
         logger.warn(
           `⚠️ addPublicMessage() - Invalid message data: missing required fields`,
         );
         return {
           success: false,
-          error: "Message must have username and text fields",
+          error: "Message must have user/username and text fields",
         };
+      }
+
+      // Normalize user field - accept both 'user' and 'username'
+      if (message.username && !message.user) {
+        message.user = message.username;
       }
 
       const messageWithId = {
@@ -752,11 +758,21 @@ class ChatStorage {
     try {
       const session = this.userSessions.get(username);
       if (session) {
+        // Remove old socket ID mapping if it exists
+        const oldSocketId = session.socketId;
+        if (oldSocketId && this.users.has(oldSocketId)) {
+          this.users.delete(oldSocketId);
+          logger.debug(
+            `🧹 updateUserSession() - Removed old socket mapping for '${username}' (${oldSocketId})`,
+          );
+        }
+
+        // Update session with new socket ID
         session.socketId = socketId;
         session.isOnline = true;
         session.lastSeen = new Date();
 
-        // Update the users map as well
+        // Update the users map with new socket ID
         this.users.set(socketId, username);
 
         logger.info(
